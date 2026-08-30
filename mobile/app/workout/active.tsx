@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useGoBack } from '../../src/navigation';
 import { useKeepAwake } from 'expo-keep-awake';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
@@ -37,6 +38,9 @@ export default function ActiveWorkoutScreen() {
 
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Leaving the logger lands on Today when there is no stack behind it, which
+  // is the case whenever the session was opened straight from a link.
+  const leave = useGoBack();
   const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
 
   const [sets, setSets] = useState<SetRow[]>([]);
@@ -140,7 +144,7 @@ export default function ActiveWorkoutScreen() {
           onPress: async () => {
             discarded.current = true;
             await discardWorkout(workoutId!);
-            router.back();
+            leave();
           },
         },
       ]);
@@ -164,7 +168,7 @@ export default function ActiveWorkoutScreen() {
           // Leave immediately. Mirroring to the health store and syncing to the
           // server are both things the user should never wait on — the session
           // is already safe in SQLite by this point.
-          router.back();
+          leave();
 
           if (getSettings().healthSync) {
             health

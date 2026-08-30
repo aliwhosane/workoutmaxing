@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { useGoBack } from '../../src/navigation';
 import { useCallback } from 'react';
 import { Text, Touch, Button, Spacer, Rule } from '../../src/design/primitives';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
@@ -21,6 +22,7 @@ import {
 export default function NewProgramScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
   const draft = useDraft();
 
   useEffect(() => () => setPendingDay(null), []);
@@ -48,7 +50,7 @@ export default function NewProgramScreen() {
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        <Touch onPress={() => { draftActions.reset(); router.back(); }} style={styles.headBtn}>
+        <Touch onPress={() => { draftActions.reset(); goBack(); }} style={styles.headBtn}>
           <Text variant="label" color={palette.ink45}>Cancel</Text>
         </Touch>
         <Text variant="label">New plan</Text>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useGoBack } from '../../src/navigation';
 import { Text, Touch, Button, Spacer, Rule } from '../../src/design/primitives';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
@@ -25,6 +26,7 @@ Bench Press 5x5 @65% rest 150`;
 export default function ImportProgramScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
   const [text, setText] = useState('');
 
   // Parsing is cheap and pure, so the preview updates as the user types rather
@@ -57,7 +59,7 @@ export default function ImportProgramScreen() {
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        <Touch onPress={() => router.back()} style={styles.headBtn}>
+        <Touch onPress={goBack} style={styles.headBtn}>
           <Text variant="label" color={palette.ink45}>Cancel</Text>
         </Touch>
         <Text variant="label">Import a plan</Text>

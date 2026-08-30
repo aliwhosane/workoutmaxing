@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Switch, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useGoBack } from '../src/navigation';
 import Svg, { Path } from 'react-native-svg';
 import { Text, Touch, Spacer, Rule } from '../src/design/primitives';
 import { palette, space, radius, touch } from '../src/design/tokens';
@@ -17,6 +18,7 @@ import { health, healthStoreName } from '../src/health';
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
   const settings = useSettings();
   const auth = useAuth();
   const syncState = useSyncState();
@@ -63,7 +65,7 @@ export default function SettingsScreen() {
   return (
     <View style={styles.screen}>
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
-        <Touch onPress={() => router.back()} style={styles.back} haptic="light">
+        <Touch onPress={goBack} style={styles.back} haptic="light">
           <Svg width={22} height={22} viewBox="0 0 24 24">
             <Path d="M15 5l-7 7 7 7" stroke={palette.ink} strokeWidth={2.2}
               strokeLinecap="round" strokeLinejoin="round" fill="none" />

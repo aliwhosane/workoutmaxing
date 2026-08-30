@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { View, StyleSheet, FlatList, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useGoBack } from '../../src/navigation';
 import { Text, Touch, Rule } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { palette, space, radius, type, touch } from '../../src/design/tokens';
@@ -18,6 +19,7 @@ export default function PickExerciseScreen() {
   const { workoutId, forDay } = useLocalSearchParams<{ workoutId?: string; forDay?: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
   const [query, setQuery] = useState('');
 
   const results = useMemo(() => searchExercises(query, 40), [query]);
@@ -28,7 +30,7 @@ export default function PickExerciseScreen() {
   const pick = async (ex: Exercise) => {
     if (forDay) setPendingDay(`done:${forDay}:${ex.id}`);
     else if (workoutId) await addExerciseToWorkout(workoutId, ex.id);
-    router.back();
+    goBack();
   };
 
   return (
@@ -36,7 +38,7 @@ export default function PickExerciseScreen() {
       <View style={{ paddingTop: insets.top + space.sm }}>
         <View style={styles.head}>
           <Text variant="heading">Add exercise</Text>
-          <Touch onPress={() => router.back()} style={styles.cancel} haptic="light">
+          <Touch onPress={goBack} style={styles.cancel} haptic="light">
             <Text variant="label" color={palette.ink45}>Cancel</Text>
           </Touch>
         </View>

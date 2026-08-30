@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useGoBack } from '../../src/navigation';
 import Svg, { Path } from 'react-native-svg';
 import { Text, Touch, Spacer, Rule } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
@@ -15,6 +16,7 @@ export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
   const { weightUnit } = useSettings();
   const ex = getExercise(id!);
 
@@ -44,7 +46,7 @@ export default function ExerciseDetailScreen() {
 
         <Touch
           style={[styles.back, { top: insets.top + space.sm }]}
-          onPress={() => router.back()}
+          onPress={goBack}
           haptic="light"
         >
           <Svg width={22} height={22} viewBox="0 0 24 24">

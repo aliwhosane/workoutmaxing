@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useGoBack, useGoHome } from '../../src/navigation';
 import Svg, { Path } from 'react-native-svg';
 import { Text, Touch, Button, Spacer, Rule } from '../../src/design/primitives';
 import { Surface } from '../../src/design/Surface';
@@ -17,6 +18,8 @@ export default function ProgramDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const goBack = useGoBack();
+  const goHome = useGoHome();
 
   const [program, setProgram] = useState<ProgramRow | null>(null);
   const [days, setDays] = useState<{ day: DayRow; slots: SlotRow[] }[]>([]);
@@ -42,8 +45,6 @@ export default function ProgramDetailScreen() {
   }, [id]);
 
   if (!program) return <View style={styles.screen} />;
-
-  const goHome = () => { router.dismissAll(); router.replace('/'); };
 
   const start = async () => {
     const current = await getActiveEnrollment();
@@ -97,7 +98,7 @@ export default function ProgramDetailScreen() {
         contentContainerStyle={{ paddingTop: insets.top + space.sm, paddingBottom: insets.bottom + 120 }}
         showsVerticalScrollIndicator={false}
       >
-        <Touch onPress={() => router.back()} style={styles.back} haptic="light">
+        <Touch onPress={goBack} style={styles.back} haptic="light">
           <Svg width={22} height={22} viewBox="0 0 24 24">
             <Path d="M15 5l-7 7 7 7" stroke={palette.ink} strokeWidth={2.2}
               strokeLinecap="round" strokeLinejoin="round" fill="none" />

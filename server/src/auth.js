@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify, createRemoteJWKSet } from 'jose';
-import { db } from './db.js';
+import { GetCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { db, table, PK } from './db.js';
 
 const enc = new TextEncoder();
 
@@ -32,16 +33,42 @@ export async function verifyProviderToken(provider, idToken, env) {
   throw new Error(`unknown provider: ${provider}`);
 }
 
-/** Finds or creates the account behind a verified provider identity. */
+/**
+ * Finds or creates the account behind a verified provider identity.
+ *
+ * The provider subject *is* the user id — "apple:001234.abc" — rather than a
+ * generated id mapped to it. It is already globally unique and stable, and
+ * using it directly removes a lookup from the hot path of every sync.
+ *
+ * Note these items deliberately carry no `updatedAt`. A DynamoDB GSI only
+ * indexes items that have both of its key attributes, so accounts and devices
+ * stay out of the sync index entirely rather than being filtered out of every
+ * delta pull.
+ */
 export async function upsertUser({ subject, email }) {
-  const users = db().collection('users');
-  const now = new Date();
-  await users.updateOne(
-    { subject },
-    { $set: { subject, email, lastSeenAt: now }, $setOnInsert: { createdAt: now } },
-    { upsert: true },
-  );
-  return users.findOne({ subject });
+  const now = Date.now();
+
+  await db().send(new UpdateCommand({
+    TableName: table(),
+    Key: { [PK]: `user#${subject}` },
+    UpdateExpression:
+      'SET email = :e, lastSeenAt = :n, createdAt = if_not_exists(createdAt, :n), userId = :u',
+    ExpressionAttributeValues: { ':e': email ?? null, ':n': now, ':u': subject },
+  }));
+
+  return { userId: subject, subject, email: email ?? null };
+}
+
+/** Records a device, so a future "sign out everywhere" has something to revoke. */
+export async function recordDevice(userId, deviceId, platform) {
+  const now = Date.now();
+  await db().send(new UpdateCommand({
+    TableName: table(),
+    Key: { [PK]: `device#${userId}#${deviceId}` },
+    UpdateExpression:
+      'SET platform = :p, lastSeenAt = :n, createdAt = if_not_exists(createdAt, :n), userId = :u',
+    ExpressionAttributeValues: { ':p': platform ?? null, ':n': now, ':u': userId },
+  }));
 }
 
 export const issueSession = (userId, secret) =>

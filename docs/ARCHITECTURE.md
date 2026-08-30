@@ -22,6 +22,37 @@ The server is a merge point between a user's own devices — never a dependency.
 No screen waits on a network call, and there is no loading spinner anywhere in
 the logging path.
 
+## The database
+
+DynamoDB, one table (`workout_maxxing`, us-east-1), replacing the MongoDB the
+server was first written against.
+
+The table's partition key is a string named `twenty_one` and cannot be changed
+after creation, so rows address themselves with a composite value in it:
+
+    <userId>#<table>#<rowId>
+
+That gives every row a unique address, making a push a plain `PutItem` — a
+client retrying after a dropped response overwrites rather than duplicates.
+
+### Why the index is not optional
+
+A delta pull is *"everything of mine changed since cursor X, in order"*. Against
+the base table that is a `Scan` with a filter: billed per item **examined**, and
+growing with total history rather than with what actually changed. On a
+pay-per-request table that is the difference between a sync that costs nothing
+and one that costs more every week the user trains.
+
+The `by_user_updated` GSI — partition `userId`, sort `updatedAt` — turns it into
+a single `Query` whose cost tracks the number of changed rows. The server
+creates it at boot if missing; adding a GSI to a live table is an online
+operation, though the index backfills in the background and Queries against it
+fail until it reports ACTIVE.
+
+Account and device records deliberately carry no `updatedAt`. A GSI only
+indexes items possessing both key attributes, so they stay out of the sync index
+entirely rather than being filtered out of every pull.
+
 ## Sync
 
 One endpoint, `POST /sync`, does both directions in a single round trip: push

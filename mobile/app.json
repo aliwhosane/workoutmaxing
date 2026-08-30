@@ -2,7 +2,7 @@
   "expo": {
     "name": "Workout Maxing",
     "slug": "workout-maxing",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "workoutmaxing",
     "userInterfaceStyle": "dark",
@@ -16,12 +16,14 @@
           "audio"
         ],
         "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight so it can track your strength relative to it, and reads workouts logged elsewhere so your history is complete.",
-        "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health, so they count toward your rings and appear alongside your other activity."
+        "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health, so they count toward your rings and appear alongside your other activity.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.developer.healthkit.access": []
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "co.workoutmaxing.app",
@@ -35,7 +37,8 @@
         "android.permission.health.WRITE_EXERCISE",
         "android.permission.health.READ_WEIGHT",
         "android.permission.health.WRITE_WEIGHT"
-      ]
+      ],
+      "versionCode": 1
     },
     "plugins": [
       [

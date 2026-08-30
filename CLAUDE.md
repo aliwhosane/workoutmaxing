@@ -112,9 +112,16 @@ Three things bit us and are now fixed in `app.json`; don't undo them:
   reference to `drawable/splashscreen_logo` and resource linking fails.
   `edgeToEdgeEnabled` is also gone — Android 16 makes edge-to-edge mandatory.
 
+**The logo is generated, not drawn.** `mobile/scripts/generate-logo.py` produces
+every icon, the splash and the favicon from one definition. Edit that and re-run
+it rather than hand-editing a PNG. Regenerating assets is not enough on its own —
+`expo prebuild` has to run afterwards or the native projects keep the old icons,
+which is silent and easy to miss.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run
     cd mobile && npm run typecheck        # typecheck
     cd mobile && npm test                 # progression engine tests
     cd mobile && node scripts/build-exercise-db.mjs   # regenerate catalogue
+    cd mobile && python3 scripts/generate-logo.py     # regenerate icons/splash

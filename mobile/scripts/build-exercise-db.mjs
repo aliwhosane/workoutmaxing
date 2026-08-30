@@ -21,9 +21,9 @@ const CANON = [
   'Barbell Full Squat', 'Standing Military Press', 'Pullups', 'Chin-Up',
   'Bent Over Barbell Row', 'Dumbbell Bench Press', 'Incline Dumbbell Press',
   'Romanian Deadlift', 'Front Barbell Squat', 'Dips - Triceps Version',
-  'Barbell Curl', 'Leg Press', 'Lat Pulldown', 'Seated Cable Rows',
-  'Dumbbell Shoulder Press', 'Hip Thrust', 'Leg Extensions', 'Lying Leg Curls',
-  'Push-Ups', 'Plank', 'Standing Calf Raises', 'Face Pull', 'Hammer Curls',
+  'Barbell Curl', 'Leg Press', 'Wide-Grip Lat Pulldown', 'Seated Cable Rows',
+  'Dumbbell Shoulder Press', 'Barbell Hip Thrust', 'Leg Extensions', 'Lying Leg Curls',
+  'Pushups', 'Plank', 'Standing Calf Raises', 'Face Pull', 'Hammer Curls',
 ];
 
 /** Equipment strings normalised to what a lifter would call them. */

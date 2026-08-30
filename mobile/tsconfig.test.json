@@ -10,7 +10,16 @@
     "strict": true,
     "outDir": ".test-build",
     "rootDir": "src",
-    "types": ["node"]
+    "types": [
+      "node"
+    ],
+    "resolveJsonModule": true
   },
-  "include": ["src/progression/**/*", "src/settings/units.ts"]
+  "include": [
+    "src/progression/**/*",
+    "src/settings/units.ts",
+    "src/data/importProgram.ts",
+    "src/data/catalog.ts",
+    "src/data/__tests__/**/*"
+  ]
 }

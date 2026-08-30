@@ -85,6 +85,27 @@ export default function ProgramsScreen() {
         </View>
       </Touch>
 
+      <Spacer h={space.md} />
+
+      {/* The way in for any plan we don't ship — a coach's program, a book, a
+          subscription. Pasted numbers come from the source rather than from
+          anyone's transcription of it. */}
+      <Touch
+        style={styles.createRow}
+        onPress={() => router.push('/program/import')}
+        scaleTo={0.98}
+      >
+        <View style={styles.plusQuiet}>
+          <Text variant="heading" color={palette.ink}>↓</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMed">Import a plan</Text>
+          <Text variant="caption" color={palette.ink45}>
+            Paste one you already follow, from anywhere
+          </Text>
+        </View>
+      </Touch>
+
       {mine.length > 0 && (
         <>
           <SectionLabel>Yours</SectionLabel>
@@ -180,6 +201,10 @@ const styles = StyleSheet.create({
   plus: {
     width: 40, height: 40, borderRadius: radius.pill,
     backgroundColor: palette.live, alignItems: 'center', justifyContent: 'center',
+  },
+  plusQuiet: {
+    width: 40, height: 40, borderRadius: radius.pill,
+    backgroundColor: palette.surfaceHigh, alignItems: 'center', justifyContent: 'center',
   },
   card: {
     flexDirection: 'row', gap: space.md,

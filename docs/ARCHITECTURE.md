@@ -137,8 +137,32 @@ name is worse than an absent one.
 
 Paid and coach-exclusive programs — the ones authors sell as books or license to
 a platform — are deliberately not reproduced, regardless of how popular they
-are. The `ProgramSpec` schema is general enough that any of them drops in as
-data if properly licensed.
+are. A personal subscription licenses a lifter to *train* on a program; it does
+not license shipping a copy of it inside another app. Those reach the app
+through import instead.
+
+### Import
+
+`src/data/importProgram.ts` parses a pasted program into the same shape the
+built-ins use. It is pure and tested, and tolerant by design — people paste out
+of spreadsheets and PDFs and the formatting is never clean.
+
+Two decisions in there are load-bearing, and both exist because the failure they
+prevent is silent:
+
+- **An unmatched exercise becomes a visible warning, never a guess.** Search is
+  strict, so "Zercher Yoke Carry" comes back unmatched rather than quietly
+  resolving to a squat. A wrong exercise the lifter can see is recoverable; one
+  they cannot is not.
+- **A line with no sets or reps is a day heading.** The tempting alternative —
+  asking whether the line names a known exercise — resolves the heading "Lower
+  Power" to *Power Clean* and buries a whole day inside the previous one.
+
+Search ranking had to be fixed for this to work at all: a plain text score sent
+"bench press" to *Bench Press with Chains* and "squat" to *Squat Jerk*, because
+those names begin with the query. Canonical lifts now dominate the ranking and
+unrequested qualifier words cost score, which improves the exercise library
+search as much as it does import.
 
 Built-ins are seeded with `origin='builtin'` and re-seeded wholesale on version
 change. A user's own plans and all logged history are never touched by that.

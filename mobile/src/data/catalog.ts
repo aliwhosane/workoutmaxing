@@ -33,6 +33,8 @@ export const getExercise = (id: string) => BY_ID.get(id);
 const INDEX = EXERCISES.map((e) => ({
   ex: e,
   name: e.name.toLowerCase(),
+  /** The name split into words, for judging how much of it the user didn't ask for. */
+  words: e.name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean),
   hay: [e.name, ...e.aka, ...e.primary, ...e.secondary, e.equipment, e.category]
     .join(' ')
     .toLowerCase(),
@@ -41,13 +43,25 @@ const INDEX = EXERCISES.map((e) => ({
 /**
  * Ranked substring search. Deliberately not fuzzy: a lifter typing "bench"
  * wants bench presses, not "Bent Over Row" scoring on shared letters. Every
- * query token must appear somewhere, and matches earlier in the name win.
+ * query token must appear somewhere.
+ *
+ * Ranking matters more than it looks. A naive text score sends "bench press"
+ * to *Bench Press with Chains* and "squat" to *Squat Jerk*, purely because
+ * those names begin with the query. When search feeds a program importer, that
+ * quietly puts the wrong movement into someone's plan — so the plain, canonical
+ * version of a lift has to win decisively, not by a tie-break:
+ *
+ *   - an exact name match beats everything;
+ *   - a canonical barbell lift carries far more weight than any text score;
+ *   - every extra qualifier in a name ("with Chains", "One Arm") costs a
+ *     little, so the plainest variant surfaces when the query is plain.
  */
 export function searchExercises(query: string, limit = 60): Exercise[] {
   const q = query.trim().toLowerCase();
   if (!q) return EXERCISES.slice(0, limit);
 
   const tokens = q.split(/\s+/);
+  const queryWords = new Set(tokens);
   const hits: { ex: Exercise; score: number }[] = [];
 
   for (const entry of INDEX) {
@@ -61,10 +75,18 @@ export function searchExercises(query: string, limit = 60): Exercise[] {
       else if (entry.hay.includes(t)) score += 10;
       else { matchedAll = false; break; }
     }
-
     if (!matchedAll) continue;
-    // Canonical lifts break ties, so "squat" leads with Barbell Squat.
-    score += Math.max(0, 30 - entry.ex.rank);
+
+    if (entry.name === q) score += 1000;
+
+    // Canonical lifts dominate rather than merely break ties.
+    if (entry.ex.rank < 900) score += 400 - entry.ex.rank * 5;
+
+    // Each word of the name the user did not ask for makes it a worse answer
+    // to a plain query.
+    const extraWords = entry.words.filter((w) => !queryWords.has(w)).length;
+    score -= extraWords * 8;
+
     hits.push({ ex: entry.ex, score });
   }
 

@@ -4,3 +4,6 @@ dist/
 .env
 *.log
 .DS_Store
+
+# OAuth client files — not secret, but no reason to publish them.
+docs/keys/

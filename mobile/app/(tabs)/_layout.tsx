@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { Surface, liquidGlassAvailable } from '../../src/design/Surface';
 import { palette, space, type } from '../../src/design/tokens';
 
 /**
@@ -11,6 +12,7 @@ import { palette, space, type } from '../../src/design/tokens';
  */
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const glass = liquidGlassAvailable();
 
   return (
     <Tabs
@@ -18,7 +20,16 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: palette.ink,
         tabBarInactiveTintColor: palette.ink25,
-        tabBarStyle: [styles.bar, { height: 52 + insets.bottom, paddingBottom: insets.bottom }],
+        tabBarStyle: [
+          styles.bar,
+          { height: 52 + insets.bottom, paddingBottom: insets.bottom },
+          // The glass plate is drawn behind the bar, so the bar itself must
+          // stop painting its own background or it would cover the effect.
+          glass && { backgroundColor: 'transparent' },
+        ],
+        tabBarBackground: glass
+          ? () => <Surface variant="chrome" style={StyleSheet.absoluteFill} />
+          : undefined,
         tabBarLabelStyle: { ...type.micro, textTransform: 'uppercase' },
         tabBarItemStyle: { paddingTop: space.sm },
         sceneStyle: { backgroundColor: palette.void },

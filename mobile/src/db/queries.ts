@@ -108,21 +108,68 @@ export const getActiveEnrollment = async () =>
     'SELECT * FROM enrollment WHERE active = 1 AND deleted_at IS NULL ORDER BY started_at DESC LIMIT 1',
   );
 
-/** Starting a program retires any previous one — you follow one plan at a time. */
+/**
+ * Starts a program, retiring any other — you follow one plan at a time.
+ *
+ * Coming back to a plan you stopped resumes it where you left off rather than
+ * restarting at week one: the enrollment row is kept when a plan is stopped
+ * precisely so that position survives.
+ */
 export async function enroll(programId: string): Promise<string> {
   const d = await getDb();
   const ts = now();
-  const id = uuid();
+
+  const previous = await d.getFirstAsync<{ id: string }>(
+    `SELECT id FROM enrollment
+     WHERE program_id = ? AND deleted_at IS NULL
+     ORDER BY started_at DESC LIMIT 1`,
+    programId,
+  );
+
+  const id = previous?.id ?? uuid();
+
   await d.withTransactionAsync(async () => {
     await d.runAsync('UPDATE enrollment SET active = 0, updated_at = ?, dirty = 1 WHERE active = 1', ts);
-    await d.runAsync(
-      `INSERT INTO enrollment (id, program_id, started_at, current_week, current_day, active, updated_at, dirty)
-       VALUES (?, ?, ?, 1, 0, 1, ?, 1)`,
-      id, programId, ts, ts,
-    );
+
+    if (previous) {
+      await d.runAsync(
+        'UPDATE enrollment SET active = 1, updated_at = ?, dirty = 1 WHERE id = ?',
+        ts, previous.id,
+      );
+    } else {
+      await d.runAsync(
+        `INSERT INTO enrollment (id, program_id, started_at, current_week, current_day, active, updated_at, dirty)
+         VALUES (?, ?, ?, 1, 0, 1, ?, 1)`,
+        id, programId, ts, ts,
+      );
+    }
   });
   return id;
 }
+
+/**
+ * Stops following a plan.
+ *
+ * Nothing is deleted — not the enrollment, not a single logged set. The row
+ * stays so that starting the plan again picks up at the same week and day, and
+ * so history keeps showing which program each session belonged to. Stopping a
+ * plan is a scheduling decision, not a destructive one.
+ */
+export async function stopFollowingProgram(): Promise<void> {
+  const d = await getDb();
+  await d.runAsync(
+    'UPDATE enrollment SET active = 0, updated_at = ?, dirty = 1 WHERE active = 1',
+    now(),
+  );
+}
+
+/** Where a plan was left off, whether or not it is the one being followed now. */
+export const getEnrollmentFor = (programId: string) =>
+  getDb().then((d) => d.getFirstAsync<ActiveEnrollment & { active: number }>(
+    `SELECT * FROM enrollment WHERE program_id = ? AND deleted_at IS NULL
+     ORDER BY started_at DESC LIMIT 1`,
+    programId,
+  ));
 
 /**
  * Called when a session finishes — rolls the plan to the next day, and to the

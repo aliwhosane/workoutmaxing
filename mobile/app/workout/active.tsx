@@ -10,6 +10,7 @@ import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { Text, Touch, Button, Spacer } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { RestTimer } from '../../src/design/RestTimer';
+import { Surface } from '../../src/design/Surface';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
 import { useSettings, getSettings } from '../../src/settings/store';
@@ -224,7 +225,7 @@ export default function ActiveWorkoutScreen() {
         )}
       </ScrollView>
 
-      <View style={[styles.dock, { paddingBottom: insets.bottom + space.sm }]}>
+      <Surface variant="chrome" style={[styles.dock, { paddingBottom: insets.bottom + space.sm }]}>
         {rest ? (
           <RestTimer key={rest.key} seconds={rest.seconds} onSkip={() => setRest(null)} />
         ) : (
@@ -234,7 +235,7 @@ export default function ActiveWorkoutScreen() {
             onPress={() => router.push({ pathname: '/exercise/pick', params: { workoutId } })}
           />
         )}
-      </View>
+      </Surface>
     </KeyboardAvoidingView>
   );
 }
@@ -453,7 +454,6 @@ const styles = StyleSheet.create({
   dock: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: space.screen, paddingTop: space.sm,
-    backgroundColor: palette.void,
   },
   empty: { paddingTop: space.huge, paddingHorizontal: space.xxl },
 });

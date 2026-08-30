@@ -5,7 +5,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Text, Touch } from './primitives';
-import { palette, space, radius, motion } from './tokens';
+import { liquidGlassAvailable } from './Surface';
+import { palette, space, radius } from './tokens';
 
 /**
  * Rest timer.
@@ -50,8 +51,12 @@ export function RestTimer({
   const fill = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
   const done = remaining === 0;
 
+  // On glass the bar's own plate would sit on top of the material and hide it;
+  // the draining fill still reads because it is drawn above.
+  const plate = liquidGlassAvailable() ? 'transparent' : palette.surface;
+
   return (
-    <Touch style={styles.bar} onPress={onSkip} scaleTo={0.99} haptic="light">
+    <Touch style={[styles.bar, { backgroundColor: plate }]} onPress={onSkip} scaleTo={0.99} haptic="light">
       <Animated.View
         style={[styles.fill, fill, done && { backgroundColor: palette.live }]}
         pointerEvents="none"
@@ -74,7 +79,7 @@ const mmss = (s: number) =>
 const styles = StyleSheet.create({
   bar: {
     height: 52, borderRadius: radius.md, overflow: 'hidden',
-    backgroundColor: palette.surface, justifyContent: 'center',
+    justifyContent: 'center',
   },
   fill: {
     position: 'absolute', left: 0, top: 0, bottom: 0,

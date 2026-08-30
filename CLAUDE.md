@@ -63,6 +63,10 @@ belongs in Settings, framed as sync.
 **Progression rules are tested.** `src/progression/engine.ts` is pure by design.
 Change it and run `npm test`. Never make it import from `db/` or React Native.
 
+**Materials go through `src/design/Surface.tsx`.** Never import
+`expo-glass-effect` in a screen. Glass belongs only on surfaces that float
+above content (tab bar, docks, rest timer) — never on content itself.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run

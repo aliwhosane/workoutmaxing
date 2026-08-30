@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Text, Touch, Button, Spacer, Rule } from '../../src/design/primitives';
+import { Surface } from '../../src/design/Surface';
 import { palette, space, radius, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
 import {
   getProgram, listDays, listSlots, enroll, getActiveEnrollment,
+  stopFollowingProgram, getEnrollmentFor,
   type ProgramRow, type DayRow, type SlotRow,
 } from '../../src/db/queries';
 
@@ -19,6 +21,8 @@ export default function ProgramDetailScreen() {
   const [program, setProgram] = useState<ProgramRow | null>(null);
   const [days, setDays] = useState<{ day: DayRow; slots: SlotRow[] }[]>([]);
   const [active, setActive] = useState(false);
+  /** Where this plan was left off, so a paused plan can say what it will resume to. */
+  const [position, setPosition] = useState<{ week: number; day: number } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -29,17 +33,62 @@ export default function ProgramDetailScreen() {
       setDays(await Promise.all(
         dayRows.map(async (day) => ({ day, slots: await listSlots(day.id) })),
       ));
-      const e = await getActiveEnrollment();
-      setActive(e?.program_id === id);
+      const [activeEnrollment, mine] = await Promise.all([
+        getActiveEnrollment(), getEnrollmentFor(id),
+      ]);
+      setActive(activeEnrollment?.program_id === id);
+      setPosition(mine ? { week: mine.current_week, day: mine.current_day } : null);
     })();
   }, [id]);
 
   if (!program) return <View style={styles.screen} />;
 
+  const goHome = () => { router.dismissAll(); router.replace('/'); };
+
   const start = async () => {
-    await enroll(program.id);
-    router.dismissAll();
-    router.replace('/');
+    const current = await getActiveEnrollment();
+    const resuming = position != null && (position.week > 1 || position.day > 0);
+
+    const begin = async () => { await enroll(program.id); goHome(); };
+
+    // Switching plans is worth a moment's pause — the one you are on stops,
+    // even though nothing about it is lost.
+    if (current && current.program_id !== program.id) {
+      const outgoing = await getProgram(current.program_id);
+      Alert.alert(
+        `Switch to ${program.name}?`,
+        `You'll stop following ${outgoing?.name ?? 'your current plan'}. Your history stays, and it will pick up where you left off if you come back to it.`,
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Switch', onPress: begin }],
+      );
+      return;
+    }
+    if (resuming) {
+      Alert.alert(
+        `Pick up where you left off?`,
+        `You were on week ${position!.week}, day ${position!.day + 1}.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Resume', onPress: begin },
+        ],
+      );
+      return;
+    }
+    await begin();
+  };
+
+  const stop = () => {
+    Alert.alert(
+      `Stop following ${program.name}?`,
+      'Nothing is deleted. Your history stays, and starting it again picks up at the same week and day.',
+      [
+        { text: 'Keep following', style: 'cancel' },
+        {
+          text: 'Stop',
+          style: 'destructive',
+          onPress: async () => { await stopFollowingProgram(); goHome(); },
+        },
+      ],
+    );
   };
 
   return (
@@ -94,13 +143,25 @@ export default function ProgramDetailScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.dock, { paddingBottom: insets.bottom + space.md }]}>
-        <Button
-          title={active ? 'Already your plan' : 'Make this my plan'}
-          disabled={active}
-          onPress={start}
-        />
-      </View>
+      <Surface variant="chrome" style={[styles.dock, { paddingBottom: insets.bottom + space.md }]}>
+        {active ? (
+          <>
+            {position && (
+              <Text variant="caption" color={palette.ink45} center style={{ paddingBottom: space.md }}>
+                Week {position.week}, day {position.day + 1}
+              </Text>
+            )}
+            <Button title="Stop following this plan" tone="quiet" onPress={stop} />
+          </>
+        ) : (
+          <Button
+            title={position && (position.week > 1 || position.day > 0)
+              ? 'Resume this plan'
+              : 'Make this my plan'}
+            onPress={start}
+          />
+        )}
+      </Surface>
     </View>
   );
 }
@@ -121,6 +182,5 @@ const styles = StyleSheet.create({
   dock: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: space.screen, paddingTop: space.md,
-    backgroundColor: palette.void,
   },
 });

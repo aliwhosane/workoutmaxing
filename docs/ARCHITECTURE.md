@@ -266,6 +266,39 @@ meant to touch. If a spacing value isn't on the 4pt grid in `space`, it's wrong.
 Motion is spring-based throughout, because nothing in the physical world moves
 on a bezier curve. Durations exist only for opacity.
 
+## Materials
+
+The app is a flat black sheet. The only things that sit *above* content are the
+tab bar, the docked primary action and the rest timer, and those are the only
+places a material belongs — everything else stays flat. `src/design/Surface.tsx`
+is the single place that decides what that material is:
+
+| Platform | Material |
+|---|---|
+| iOS 26+ | Liquid Glass via `expo-glass-effect` — a real `UIVisualEffectView` that refracts content scrolling beneath |
+| Android | Material 3 tonal elevation — a surface lifts by getting *lighter*, not translucent. Not a fallback; it is what M3 actually specifies |
+| Older iOS | The same tonal surface |
+
+`liquidGlassAvailable()` gates this at runtime, and the module is lazily
+required so the app still runs in Expo Go, where it does not exist.
+
+Two things this deliberately is not: it is not a layout change (nothing moves,
+nothing changes shape) and it is not applied to content. A glass card in a list
+would be decoration; glass under a floating bar is the content showing through
+something that is genuinely in front of it.
+
+## Following a plan
+
+One plan is active at a time, tracked by an `enrollment` row.
+
+Stopping a plan sets `active = 0` and deletes nothing — not the enrollment, not
+a set. The row survives specifically so that coming back to the plan resumes at
+the same week and day rather than restarting, and so history keeps showing which
+program each session belonged to. Stopping is a scheduling decision, never a
+destructive one, and the confirmation says so.
+
+Switching plans confirms first, naming what is being stopped.
+
 ## Known gaps
 
 - Sync has not been run against a live MongoDB instance (awaiting credentials)

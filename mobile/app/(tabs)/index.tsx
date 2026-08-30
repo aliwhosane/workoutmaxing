@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Text, Touch, Button, Spacer } from '../../src/design/primitives';
+import { Surface, liquidGlassAvailable } from '../../src/design/Surface';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { palette, space, radius, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
@@ -123,12 +124,15 @@ export default function TodayScreen() {
 
       {/* The primary action never scrolls away. There is exactly one of these
           on the screen, and it is always in the same place. */}
-      <View style={[styles.dock, { paddingBottom: insets.bottom + space.md }]}>
+      <Surface
+        variant="chrome"
+        style={[styles.dock, { paddingBottom: insets.bottom + space.md }]}
+      >
         <Button
           title={open ? 'Resume workout' : slots.length ? 'Start' : 'Start empty workout'}
           onPress={begin}
         />
-      </View>
+      </Surface>
     </View>
   );
 }
@@ -194,7 +198,6 @@ const styles = StyleSheet.create({
   dock: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     paddingHorizontal: space.screen, paddingTop: space.md,
-    backgroundColor: palette.void,
   },
   empty: { paddingHorizontal: space.xxl, paddingTop: space.huge, alignItems: 'center' },
   textAction: { height: touch.min, justifyContent: 'center', paddingHorizontal: space.lg, borderRadius: radius.pill },

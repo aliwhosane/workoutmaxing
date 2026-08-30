@@ -277,6 +277,7 @@ is the single place that decides what that material is:
 |---|---|
 | iOS 26+ | Liquid Glass via `expo-glass-effect` — a real `UIVisualEffectView` that refracts content scrolling beneath |
 | Android | Material 3 tonal elevation — a surface lifts by getting *lighter*, not translucent. Not a fallback; it is what M3 actually specifies |
+| | (this has to be a real tone step: painting chrome the same colour as the background, as the first cut did, removes the separation entirely) |
 | Older iOS | The same tonal surface |
 
 `liquidGlassAvailable()` gates this at runtime, and the module is lazily

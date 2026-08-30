@@ -1,4 +1,4 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -75,8 +75,10 @@ function Icon({ name, color }: { name: string; color: any }) {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: palette.void,
+    // Android separates a bar from content by raising its tone; iOS does it
+    // with a material. See src/design/Surface.tsx for the same reasoning.
+    backgroundColor: Platform.OS === 'android' ? palette.surface : palette.void,
     borderTopWidth: 0,
-    elevation: 0,
+    elevation: Platform.OS === 'android' ? 3 : 0,
   },
 });

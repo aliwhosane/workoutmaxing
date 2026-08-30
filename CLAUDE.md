@@ -93,6 +93,25 @@ device and demands code signing. Build the simulator target directly instead:
 Liquid Glass needs a **dev build on iOS 26+** — it cannot appear in Expo Go,
 where the tonal fallback is used instead.
 
+### Android
+
+`ANDROID_HOME` must be exported (`$HOME/Library/Android/sdk`); Gradle will not
+find the SDK otherwise. `npx expo run:android --device <serial>` fails to match
+a serial the same way the iOS one does — with a single device attached, omit it.
+
+Three things bit us and are now fixed in `app.json`; don't undo them:
+
+- **minSdk 26.** Health Connect's `connect-client` requires it. The
+  `tools:overrideLibrary` escape hatch is documented to cause runtime failures.
+  Set via `expo-build-properties`.
+- **Health Connect permissions are the app's job.** `react-native-health-connect`
+  installs the rationale activity but declares no `android.permission.health.*`
+  entries, so `requestPermission()` silently grants nothing. They live in
+  `android.permissions` and must mirror exactly what `healthConnect.ts` asks for.
+- **`expo-splash-screen` needs an `image`.** Without one it still emits a
+  reference to `drawable/splashscreen_logo` and resource linking fails.
+  `edgeToEdgeEnabled` is also gone — Android 16 makes edge-to-edge mandatory.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run

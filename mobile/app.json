@@ -8,11 +8,6 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "backgroundColor": "#0A0A0B",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A0A0B"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "co.workoutmaxing.app",
@@ -36,9 +31,21 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0A0A0B"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "android.permission.health.WRITE_EXERCISE",
+        "android.permission.health.READ_WEIGHT",
+        "android.permission.health.WRITE_WEIGHT"
+      ]
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ],
       "expo-router",
       "expo-sqlite",
       "expo-image",
@@ -46,8 +53,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A0A0B",
-          "resizeMode": "contain"
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A0A0B"
         }
       ],
       "expo-apple-authentication",

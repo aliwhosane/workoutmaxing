@@ -80,15 +80,24 @@ export function Surface({ children, style, variant = 'panel', cornerRadius }: Su
     );
   }
 
+  /**
+   * Material 3 lifts a surface by *tone* — it gets lighter, not translucent —
+   * so on Android a bar has to be a step above the background or it simply is
+   * the background and the separation disappears entirely.
+   *
+   * On older iOS the convention is the opposite: bars sit flush with the window
+   * and are separated by blur, which we cannot do without a heavier dependency.
+   * Painting them a lighter grey there would look wrong, so they stay flush.
+   */
+  const chromeColor = Platform.OS === 'android' ? palette.surface : palette.void;
+
   return (
     <View
       style={[
         styles.tonal,
         {
           borderRadius: r,
-          // Material 3 lifts a surface by tone. Chrome sits lower than a panel
-          // because it is part of the window rather than floating over it.
-          backgroundColor: variant === 'chrome' ? palette.void : palette.surface,
+          backgroundColor: variant === 'chrome' ? chromeColor : palette.surface,
         },
         style,
       ]}

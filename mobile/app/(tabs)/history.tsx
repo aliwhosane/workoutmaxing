@@ -5,9 +5,12 @@ import { useFocusEffect } from 'expo-router';
 import { Text, Spacer, Rule } from '../../src/design/primitives';
 import { palette, space } from '../../src/design/tokens';
 import { listHistory, type HistoryEntry } from '../../src/db/queries';
+import { useSettings } from '../../src/settings/store';
+import { formatVolume } from '../../src/settings/units';
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const { weightUnit } = useSettings();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
 
   useFocusEffect(useCallback(() => { listHistory().then(setEntries); }, []));
@@ -35,7 +38,7 @@ export default function HistoryScreen() {
           <View style={styles.stats}>
             <Stat value={String(thisWeek)} label="This week" />
             <Stat value={String(entries.length)} label="Sessions" />
-            <Stat value={compact(totalVolume)} label="Volume kg" />
+            <Stat value={formatVolume(totalVolume, weightUnit)} label={`Volume ${weightUnit}`} />
           </View>
 
           <Spacer h={space.xl} />
@@ -55,7 +58,7 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
                 <Text variant="label" color={palette.ink70} numeric>
-                  {e.volume_kg > 0 ? `${compact(e.volume_kg)} kg` : ''}
+                  {e.volume_kg > 0 ? `${formatVolume(e.volume_kg, weightUnit)} ${weightUnit}` : ''}
                 </Text>
               </View>
             </View>
@@ -72,10 +75,6 @@ const Stat = ({ value, label }: { value: string; label: string }) => (
     <Text variant="micro" color={palette.ink45}>{label.toUpperCase()}</Text>
   </View>
 );
-
-/** 12,480 → 12.5k. Numbers you can read at a glance beat numbers you can audit. */
-const compact = (n: number) =>
-  n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.void },

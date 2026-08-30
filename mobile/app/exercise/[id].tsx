@@ -8,11 +8,14 @@ import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { palette, space, radius, touch } from '../../src/design/tokens';
 import { getExercise, label } from '../../src/data/catalog';
 import { lastPerformance, epley, type SetRow } from '../../src/db/queries';
+import { useSettings } from '../../src/settings/store';
+import { formatWeight } from '../../src/settings/units';
 
 export default function ExerciseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { weightUnit } = useSettings();
   const ex = getExercise(id!);
 
   const [recent, setRecent] = useState<SetRow[]>([]);
@@ -66,7 +69,9 @@ export default function ExerciseDetailScreen() {
               <Spacer h={space.xl} />
               <Text variant="micro" color={palette.ink45}>ESTIMATED 1RM</Text>
               <Spacer h={space.xs} />
-              <Text variant="display" numeric>{Math.round(best)} kg</Text>
+              <Text variant="display" numeric>
+                {formatWeight(best, weightUnit)} {weightUnit}
+              </Text>
             </>
           )}
 
@@ -78,7 +83,8 @@ export default function ExerciseDetailScreen() {
               {recent.slice(0, 5).map((s) => (
                 <View key={s.id} style={styles.recentRow}>
                   <Text variant="body" color={palette.ink70} numeric>
-                    {s.weight_kg ? `${s.weight_kg} kg × ` : ''}{s.reps ?? s.duration_s + 's'}
+                    {s.weight_kg ? `${formatWeight(s.weight_kg, weightUnit)} ${weightUnit} × ` : ''}
+                    {s.reps ?? `${s.duration_s}s`}
                   </Text>
                   <Text variant="caption" color={palette.ink25}>
                     {s.completed_at ? new Date(s.completed_at).toLocaleDateString() : ''}

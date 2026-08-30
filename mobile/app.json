@@ -19,7 +19,13 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ]
+        ],
+        "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight so it can track your strength relative to it, and reads workouts logged elsewhere so your history is complete.",
+        "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health, so they count toward your rings and appear alongside your other activity."
+      },
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.access": []
       }
     },
     "android": {
@@ -43,7 +49,17 @@
           "backgroundColor": "#0A0A0B",
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight and existing workouts so your history is complete.",
+          "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health.",
+          "background": true
+        }
+      ],
+      "react-native-health-connect"
     ],
     "experiments": {
       "typedRoutes": true

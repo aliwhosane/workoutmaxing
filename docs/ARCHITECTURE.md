@@ -53,10 +53,30 @@ handles them separately:
 1. **Cross-device sync of the user's own data** — the delta sync above, via the
    Node/MongoDB service. Platform-neutral, works iPhone→Android.
 2. **Writing workouts into the phone's own health store** — Apple HealthKit on
-   iOS, Health Connect on Android, so sessions appear in the native Health app
-   and rings close. *Not yet built.* It needs native modules and a development
-   build (it cannot run in Expo Go), which is why it is staged after the core
-   loop rather than before it.
+   iOS, Health Connect on Android, so sessions appear in the native Health app.
+   Built: `src/health/`.
+
+### The health bridge
+
+`src/health/index.ts` exposes one narrow, platform-neutral interface — write a
+session, read bodyweight, write bodyweight — and dispatches to HealthKit or
+Health Connect behind it. Callers never branch on platform.
+
+Both platform modules are **lazily required inside a try/catch**. They do not
+exist in Expo Go, and a top-level import would take the entire app down there
+rather than disabling one feature. When the native side is missing, the bridge
+resolves to `UNAVAILABLE` and every method is a no-op returning false. Writing
+to the health store is a nicety layered on the app's own database — never a
+step the user's data depends on.
+
+Two deliberate limits:
+
+- **We never estimate calories.** Energy is written only when it came from a
+  real measurement. Inventing calorie data in someone's permanent health record
+  is worse than writing none.
+- **HealthKit cannot report read authorisation** — by design, since that would
+  leak whether a user has data they chose not to share. We report write status,
+  which is the one that matters for saving sessions.
 
 ## The exercise catalogue
 
@@ -93,6 +113,36 @@ no code change — `ProgramSpec` in `mobile/src/data/programs.ts`.
 Built-ins are seeded with `origin='builtin'` and re-seeded wholesale on version
 change. A user's own plans and all logged history are never touched by that.
 
+## Units
+
+Weight (kg/lb) and distance (km/mi) are user-selectable, defaulting from device
+locale so the app is already right for most people before they open settings.
+
+The rule the whole feature rests on: **the database is always canonical** —
+kilograms, metres, seconds. Units are purely a display concern, applied on read
+and reversed on write (`src/settings/units.ts`).
+
+That means switching units re-renders numbers and never migrates a row. The
+choice is free to change at any time, cannot corrupt history, and two devices
+set to different units show the same data correctly. Round-trips are verified
+exact across both units at real gym weights.
+
+## Accounts
+
+There is **no sign-in gate**. Every exercise, program and logged set works
+without an account, because requiring a signup before someone can log their
+first set would be the largest friction the app could possibly add. An account
+buys exactly one thing: the same history on a second device — so sign-in lives
+in Settings, framed as sync rather than as entry.
+
+Apple on iOS, Google on Android. Both return a signed ID token which the server
+verifies against the provider's public keys before minting its own session. No
+password is ever typed or stored. The session token lives in the platform
+keychain via `expo-secure-store`, never AsyncStorage.
+
+Signing out deletes the token and nothing else. The user's training history is
+theirs and stays on their phone.
+
 ## Visual system
 
 Defined entirely in `mobile/src/design/tokens.ts`.
@@ -107,8 +157,10 @@ on a bezier curve. Durations exist only for opacity.
 
 ## Known gaps
 
-- HealthKit / Health Connect integration (layer 2 above)
-- Auth UI — the server verifies Apple/Google tokens, but no sign-in screen yet
-- Sync has not been run against a live MongoDB instance
+- Sync has not been run against a live MongoDB instance (awaiting credentials)
+- Google sign-in needs OAuth client ids in `.env` before it appears
+- Health and Google sign-in need a development build; both are correctly
+  inert in Expo Go, but that means neither has been exercised end to end yet
 - Plate-math / warmup-set generation
 - Progress charts beyond estimated 1RM
+- Separate bodyweight unit (stone) — the units layer extends to it cleanly

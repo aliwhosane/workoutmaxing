@@ -7,6 +7,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { openDatabase } from '../src/db/client';
 import { seedBuiltInPrograms } from '../src/data/programs';
+import { loadSettings } from '../src/settings/store';
+import { restoreSession } from '../src/auth/store';
+import { syncInBackground } from '../src/sync/service';
 import { palette, motion } from '../src/design/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -18,7 +21,14 @@ export default function RootLayout() {
     (async () => {
       try {
         await openDatabase();
+        // Settings before programs: every screen that renders a number reads
+        // them synchronously, so they must be hydrated before the first paint
+        // or weights would flash in the wrong unit.
+        await loadSettings();
         await seedBuiltInPrograms();
+        // Session restore is not on the critical path to first paint — the app
+        // is fully usable signed out, so we don't make anyone wait on it.
+        restoreSession().then(syncInBackground);
       } catch (err) {
         // A failed migration must not trap the user on a splash screen forever.
         console.error('[boot] initialisation failed', err);
@@ -44,6 +54,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
+          <Stack.Screen name="settings" options={{ presentation: 'card' }} />
           {/* The logger is a full-screen takeover: while you are training,
               there is nothing else in the app. */}
           <Stack.Screen

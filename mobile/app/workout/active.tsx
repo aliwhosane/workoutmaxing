@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useKeepAwake } from 'expo-keep-awake';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { FadeIn, Layout } from 'react-native-reanimated';
@@ -12,6 +12,10 @@ import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { RestTimer } from '../../src/design/RestTimer';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
+import { useSettings, getSettings } from '../../src/settings/store';
+import { health } from '../../src/health';
+import { syncInBackground } from '../../src/sync/service';
+import { displayToKg, weightFieldValue } from '../../src/settings/units';
 import {
   listSets, completeSet, uncompleteSet, finishWorkout, discardWorkout,
   materializeWorkout, addSetToExercise, listSlots, advanceEnrollment,
@@ -73,6 +77,22 @@ export default function ActiveWorkoutScreen() {
     return () => clearInterval(t);
   }, [startedAt]);
 
+  /**
+   * Refetch whenever this screen comes back to the front — the exercise picker
+   * writes straight to the database and pops, so without this the session would
+   * still be showing the set list from before the user added anything.
+   *
+   * Skipped on the very first focus, where the setup effect above is already
+   * mid-flight and would otherwise race it to an empty result.
+   */
+  const setupDone = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (setupDone.current) reload();
+      else setupDone.current = true;
+    }, [reload]),
+  );
+
   /** Sets arrive flat and ordered; group them into the exercise blocks we render. */
   const groups = useMemo(() => {
     const out: { exerciseId: string; slotId: string | null; sets: SetRow[] }[] = [];
@@ -115,12 +135,29 @@ export default function ActiveWorkoutScreen() {
         text: 'Finish',
         onPress: async () => {
           await finishWorkout(workoutId!);
+
           const enrollment = await getActiveEnrollment();
           if (enrollment) {
             const days = await listDays(enrollment.program_id);
             await advanceEnrollment(enrollment.id, days.length);
           }
+
+          // Leave immediately. Mirroring to the health store and syncing to the
+          // server are both things the user should never wait on — the session
+          // is already safe in SQLite by this point.
           router.back();
+
+          if (getSettings().healthSync) {
+            health
+              .saveWorkout({
+                id: workoutId!,
+                name,
+                startedAt: new Date(startedAt),
+                finishedAt: new Date(),
+              })
+              .catch(() => {});
+          }
+          syncInBackground();
         },
       },
     ]);
@@ -195,6 +232,7 @@ function ExerciseBlock({
 }) {
   const ex = getExercise(exerciseId);
   const router = useRouter();
+  const { weightUnit } = useSettings();
   if (!ex) return null;
 
   const isDuration = ex.tracking === 'duration';
@@ -218,7 +256,11 @@ function ExerciseBlock({
 
       <View style={styles.columns}>
         <Text variant="micro" color={palette.ink25} style={{ width: 28 }}>SET</Text>
-        {showsWeight && <Text variant="micro" color={palette.ink25} style={styles.colNum}>KG</Text>}
+        {showsWeight && (
+          <Text variant="micro" color={palette.ink25} style={styles.colNum}>
+            {weightUnit.toUpperCase()}
+          </Text>
+        )}
         <Text variant="micro" color={palette.ink25} style={styles.colNum}>
           {isDuration ? 'SEC' : 'REPS'}
         </Text>
@@ -251,8 +293,14 @@ function SetRowView({
   row: SetRow; index: number; showsWeight: boolean; isDuration: boolean;
   onComplete: (row: SetRow, v: { weight: number | null; reps: number | null }) => void;
 }) {
-  // Local copies so typing stays instant and never waits on SQLite.
-  const [weight, setWeight] = useState(row.weight_kg != null ? String(row.weight_kg) : '');
+  const { weightUnit } = useSettings();
+
+  /**
+   * Local copies so typing stays instant and never waits on SQLite. These hold
+   * the number the user sees, in their chosen unit; the conversion back to
+   * canonical kilograms happens on the way into the database, never in it.
+   */
+  const [weight, setWeight] = useState(weightFieldValue(row.weight_kg, weightUnit));
   const [reps, setReps] = useState(
     isDuration
       ? row.duration_s != null ? String(row.duration_s) : ''
@@ -260,11 +308,11 @@ function SetRowView({
   );
 
   useEffect(() => {
-    setWeight(row.weight_kg != null ? String(row.weight_kg) : '');
+    setWeight(weightFieldValue(row.weight_kg, weightUnit));
     setReps(isDuration
       ? row.duration_s != null ? String(row.duration_s) : ''
       : row.reps != null ? String(row.reps) : '');
-  }, [row.weight_kg, row.reps, row.duration_s, isDuration]);
+  }, [row.weight_kg, row.reps, row.duration_s, isDuration, weightUnit]);
 
   const complete = !!row.completed_at;
 
@@ -287,7 +335,7 @@ function SetRowView({
         scaleTo={0.88}
         onPress={() =>
           onComplete(row, {
-            weight: weight ? Number(weight) : null,
+            weight: weight ? displayToKg(Number(weight), weightUnit) : null,
             reps: reps ? Number(reps) : null,
           })
         }

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { Text, Touch, Button, Spacer } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { palette, space, radius, touch } from '../../src/design/tokens';
@@ -70,11 +71,34 @@ export default function TodayScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.head}>
+          {/* Settings is the only thing on this screen that isn't training.
+              It sits out of the way, at the top, and never competes with the
+              primary action at the bottom. */}
+          <Touch
+            style={styles.settings}
+            onPress={() => router.push('/settings')}
+            haptic="light"
+            scaleTo={0.9}
+          >
+            <Svg width={22} height={22} viewBox="0 0 24 24">
+              <Circle cx={12} cy={12} r={3.2} stroke={palette.ink45} strokeWidth={1.9} fill="none" />
+              <Path
+                d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M17.9 6.1l-1.4 1.4M7.5 16.5l-1.4 1.4M17.9 17.9l-1.4-1.4M7.5 7.5L6.1 6.1"
+                stroke={palette.ink45} strokeWidth={1.9} strokeLinecap="round" fill="none"
+              />
+            </Svg>
+          </Touch>
           <Text variant="micro" color={palette.ink45}>
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase()}
           </Text>
           <Spacer h={space.sm} />
-          <Text variant="hero">{day ? day.name : 'Rest'}</Text>
+          {/* The hero shrinks as the name grows. Program authors write day
+              names of wildly different lengths ("Push" vs "Day 2 — OHP /
+              Deadlift"), and a fixed 56pt hero turns the long ones into a
+              three-line wall that pushes the actual session off screen. */}
+          <Text variant={titleVariant(day?.name)} numberOfLines={2}>
+            {day ? day.name : 'Rest'}
+          </Text>
           {program && (
             <>
               <Spacer h={space.xs} />
@@ -104,6 +128,14 @@ export default function TodayScreen() {
       </View>
     </View>
   );
+}
+
+/** Picks the largest size the name fits in without wrapping past two lines. */
+function titleVariant(name?: string): 'hero' | 'display' | 'title' {
+  const len = name?.length ?? 0;
+  if (len <= 12) return 'hero';
+  if (len <= 24) return 'display';
+  return 'title';
 }
 
 function SlotPreview({ slot, index }: { slot: SlotRow; index: number }) {
@@ -150,6 +182,10 @@ function EmptyState({ onBrowse }: { onBrowse: () => void }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.void },
   head: { paddingHorizontal: space.screen },
+  settings: {
+    position: 'absolute', right: space.screen - space.sm, top: -space.sm,
+    width: touch.min, height: touch.min, alignItems: 'center', justifyContent: 'center',
+  },
   list: { paddingHorizontal: space.screen, gap: space.lg },
   slot: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   dock: {

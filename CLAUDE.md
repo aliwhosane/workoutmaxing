@@ -67,6 +67,32 @@ Change it and run `npm test`. Never make it import from `db/` or React Native.
 `expo-glass-effect` in a screen. Glass belongs only on surfaces that float
 above content (tab bar, docks, rest timer) — never on content itself.
 
+## Native builds
+
+**The project path must not contain spaces.** React Native's and expo-constants'
+Xcode script phases interpolate paths into shell commands without quoting them,
+so a space splits the path and the build dies with `bash: /Users/…/Workout: No
+such file or directory`. This repo was moved from "Workout Maxing" to
+`workout_maxing` for exactly that reason — patching each unquoted script was a
+losing game against upstream.
+
+**CocoaPods needs a UTF-8 locale.** Without it `pod install` fails inside Ruby's
+unicode normalisation. Either add `export LANG=en_US.UTF-8` to your profile or
+prefix the command.
+
+`npx expo run:ios --device <udid>` misidentifies a simulator UDID as a physical
+device and demands code signing. Build the simulator target directly instead:
+
+    cd ios && pod install
+    xcodebuild -workspace WorkoutMaxing.xcworkspace -scheme WorkoutMaxing \
+      -configuration Debug -sdk iphonesimulator \
+      -destination "id=<simulator-udid>" -derivedDataPath ./build \
+      CODE_SIGNING_ALLOWED=NO build
+    xcrun simctl install <udid> ios/build/Build/Products/Debug-iphonesimulator/WorkoutMaxing.app
+
+Liquid Glass needs a **dev build on iOS 26+** — it cannot appear in Expo Go,
+where the tonal fallback is used instead.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run

@@ -188,7 +188,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
     paddingHorizontal: space.screen,
   },
-  filterRow: { paddingHorizontal: space.screen, paddingTop: space.lg, gap: space.sm },
+  filterRow: {
+    paddingHorizontal: space.screen,
+    paddingTop: space.lg,
+    // The chips are a control strip, not part of the list below — they need
+    // the same air beneath them that they have above, or the first card reads
+    // as attached to them.
+    paddingBottom: space.xl,
+    gap: space.sm,
+  },
   chip: {
     paddingHorizontal: space.md, height: 32, borderRadius: radius.pill,
     backgroundColor: palette.surfaceHigh, alignItems: 'center', justifyContent: 'center',

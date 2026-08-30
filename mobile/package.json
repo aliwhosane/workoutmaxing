@@ -40,7 +40,9 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/progression/__tests__/*.test.js\"",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

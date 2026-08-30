@@ -1,0 +1,16 @@
+{
+  "//": "Compiles the pure-logic modules to CommonJS so node --test can run them. React Native code never uses this config.",
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "6.0",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "outDir": ".test-build",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/progression/**/*", "src/settings/units.ts"]
+}

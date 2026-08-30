@@ -14,7 +14,7 @@
  * grows. Only a user's own edits (custom exercises) hit the database.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 export const MIGRATIONS: string[][] = [
   // ---- v1 ----------------------------------------------------------------
@@ -170,12 +170,66 @@ export const MIGRATIONS: string[][] = [
       value TEXT
     );`,
   ],
+
+  // ---- v2: progressive overload --------------------------------------------
+  [
+    /** Which progression scheme a program uses by default. */
+    `ALTER TABLE program ADD COLUMN default_scheme TEXT;`,
+
+    /**
+     * Per-slot override. GZCLP needs this: the same program runs three
+     * different progression rules depending on the tier a lift sits in.
+     */
+    `ALTER TABLE program_slot ADD COLUMN scheme TEXT;`,
+
+    /**
+     * Where each lift currently sits in its progression.
+     *
+     * Keyed by program + exercise, because the same movement can be progressing
+     * differently in two plans, and because dropping a program should not erase
+     * what the user built up in another.
+     */
+    `CREATE TABLE IF NOT EXISTS progression_state (
+      id             TEXT PRIMARY KEY,
+      program_id     TEXT,
+      exercise_id    TEXT NOT NULL,
+      scheme         TEXT NOT NULL,
+      stage          INTEGER NOT NULL DEFAULT 0,
+      failures       INTEGER NOT NULL DEFAULT 0,
+      working_kg     REAL,
+      training_max_kg REAL,
+      updated_at     INTEGER NOT NULL,
+      deleted_at     INTEGER,
+      dirty          INTEGER NOT NULL DEFAULT 1
+    );`,
+    `CREATE INDEX IF NOT EXISTS idx_progression_lookup
+       ON progression_state(program_id, exercise_id);`,
+  ],
+
+  // ---- v3: the reason behind a suggested weight -----------------------------
+  //
+  // Deliberately its own migration rather than an addition to v2. A migration
+  // that has already run on any device will never run again — `user_version`
+  // has moved past it — so editing one in place silently skips the new
+  // statement and leaves those databases missing a column the code expects.
+  // Once a version has shipped (or even just been run in development), the only
+  // safe way to add to it is a new version.
+  [
+    /**
+     * Why this weight was suggested, in plain language, written once when the
+     * session is built. Stored rather than recomputed so the reason the lifter
+     * reads cannot change under them halfway through a session — and so it is
+     * still there in history months later.
+     */
+    `ALTER TABLE logged_set ADD COLUMN coach_note TEXT;`,
+  ],
 ];
 
 /** Tables the sync engine pushes and pulls, in dependency order. */
 export const SYNCED_TABLES = [
   'program', 'program_day', 'program_slot', 'enrollment',
   'workout', 'logged_set', 'custom_exercise', 'exercise_pref', 'body_metric',
+  'progression_state',
 ] as const;
 
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
@@ -196,4 +250,5 @@ export const PRIMARY_KEY: Record<SyncedTable, string> = {
   custom_exercise: 'id',
   exercise_pref: 'exercise_id',
   body_metric: 'id',
+  progression_state: 'id',
 };

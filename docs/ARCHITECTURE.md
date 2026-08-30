@@ -113,6 +113,62 @@ no code change — `ProgramSpec` in `mobile/src/data/programs.ts`.
 Built-ins are seeded with `origin='builtin'` and re-seeded wholesale on version
 change. A user's own plans and all logged history are never touched by that.
 
+## Progressive overload
+
+The app decides what weight to put in front of you, and always says why.
+
+`src/progression/engine.ts` is a **pure function** — no database, no platform —
+so the rules can be unit tested directly (`npm test`, 24 cases). That matters
+more here than anywhere else in the codebase: a bug in this file tells someone
+to lift a weight they cannot lift.
+
+Two principles run through all of it:
+
+1. **Never guess from nothing.** With no history the suggestion is `null` and
+   the field stays empty for the lifter to fill in. An invented starting weight
+   is worse than no weight at all.
+2. **Always explain.** Every suggestion carries a one-line reason ("+5 kg — you
+   hit every rep last time"), shown in the logger and stored with the session.
+   The number is something to agree or disagree with, not an instruction.
+
+### The schemes
+
+Each is a real published method, not an approximation — someone running GZCLP
+expects GZCLP's actual rules.
+
+| Scheme | Rule | Used by |
+|---|---|---|
+| `linear` | Add a fixed increment on success; deload 10% after 3 straight misses | Novice LP, Madcow, heavy 5s |
+| `double` | Climb the rep range, then add load and reset to the bottom | PHUL, PPL, Upper/Lower |
+| `gzclp_t1` | 5×3 → 6×2 → 10×1; out of stages, reset to 90% | GZCLP tier 1 |
+| `gzclp_t2` | 3×10 → 3×8 → 3×6; new cycle restarts *heavier* | GZCLP tier 2 |
+| `gzclp_t3` | Add load once the AMRAP set clears 25 reps | GZCLP tier 3 |
+| `rpe` | Correct load by ~4% per rep away from target RPE | Available; no built-in uses it yet |
+
+Increments follow the universal convention: upper body moves one plate step
+(2.5 kg / 5 lb), lower body two.
+
+### Rounding
+
+Every number the engine emits is snapped to a weight that exists in a gym —
+suggesting 63.7 kg is useless. The one exception is *holding* a weight, which
+passes through exactly what was lifted: rounding a held 42.5 kg up to a
+"loadable" 95 lb would be telling someone to add weight they never lifted.
+
+### Estimating 1RM
+
+Brzycki below 6 reps, Epley above — each used where the literature puts it.
+Both degrade past ~10 reps (±15–20%), so `estimateConfidence` marks those low
+and the UI declines to make confident claims from them. RPE folds in by
+treating a set of 5 at RPE 8 as equivalent to a set of 7 to failure.
+
+### Where state lives
+
+`progression_state`, keyed by program + exercise — the same lift can progress
+differently in two plans, and dropping one plan must not erase the other.
+State advances in exactly one place: `advanceProgression`, after a workout is
+marked finished. Opening a screen never changes a lifter's progression.
+
 ## Units
 
 Weight (kg/lb) and distance (km/mi) are user-selectable, defaulting from device
@@ -161,6 +217,7 @@ on a bezier curve. Durations exist only for opacity.
 - Google sign-in needs OAuth client ids in `.env` before it appears
 - Health and Google sign-in need a development build; both are correctly
   inert in Expo Go, but that means neither has been exercised end to end yet
-- Plate-math / warmup-set generation
+- Warmup-set generation and plate maths (which plates to load)
+- No built-in program uses the `rpe` scheme yet; it needs RPE capture in the logger
 - Progress charts beyond estimated 1RM
 - Separate bodyweight unit (stone) — the units layer extends to it cleanly

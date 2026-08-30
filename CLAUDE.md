@@ -43,6 +43,11 @@ belongs in Settings, framed as sync.
   app down there. Metro still bundles them, so the package must be installed
   either way — `@kingstinct/react-native-healthkit` also needs its
   `react-native-nitro-modules` peer.
+- **Never edit a migration that has already run.** `user_version` has moved
+  past it, so the new statement is silently skipped and those databases end up
+  missing a column the code expects. Add a new version instead. This already
+  bit us once: `coach_note` was appended to v2 after v2 had run, and the column
+  simply never appeared.
 - A screen that navigates away and returns needs `useFocusEffect` to refetch.
   The exercise picker writes to SQLite and pops; without it the logger showed
   stale state and adding an exercise looked like it did nothing.
@@ -51,8 +56,12 @@ belongs in Settings, framed as sync.
 - `.npmrc` sets `legacy-peer-deps=true`; expo-router pulls a react-dom ahead of
   Expo's pinned react. Install with `npx expo install`, not bare `npm install`.
 
+**Progression rules are tested.** `src/progression/engine.ts` is pure by design.
+Change it and run `npm test`. Never make it import from `db/` or React Native.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run
-    cd mobile && npx tsc --noEmit         # typecheck
+    cd mobile && npm run typecheck        # typecheck
+    cd mobile && npm test                 # progression engine tests
     cd mobile && node scripts/build-exercise-db.mjs   # regenerate catalogue

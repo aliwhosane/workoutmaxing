@@ -1,4 +1,5 @@
 import { getDb, uuid, now } from '../db/client';
+import type { SchemeKind } from '../progression/types';
 
 /**
  * Built-in program library.
@@ -16,6 +17,8 @@ import { getDb, uuid, now } from '../db/client';
 
 export interface SlotSpec {
   exercise: string;          // exercise id from the bundled catalogue
+  /** Overrides the program's default progression. GZCLP needs this per tier. */
+  scheme?: SchemeKind;
   sets?: number;
   reps?: string;             // "5", "8-12", "AMRAP"
   pct?: number;              // % of training max
@@ -31,6 +34,8 @@ export interface ProgramSpec {
   id: string;
   name: string;
   author: string;
+  /** How this program advances load, unless a slot says otherwise. */
+  scheme: SchemeKind;
   goal: 'strength' | 'hypertrophy' | 'general' | 'powerbuilding';
   daysPerWeek: number;
   weeks: number | null;      // null = runs indefinitely
@@ -69,6 +74,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.nlp',
     name: 'Novice Linear Progression',
     author: 'Classic',
+    scheme: 'linear',
     goal: 'strength',
     daysPerWeek: 3,
     weeks: null,
@@ -97,6 +103,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.gzclp',
     name: 'GZCLP',
     author: 'Cody Lefever',
+    scheme: 'gzclp_t3',
     goal: 'powerbuilding',
     daysPerWeek: 4,
     weeks: null,
@@ -105,24 +112,24 @@ export const BUILT_IN: ProgramSpec[] = [
       'Linear progression built on the GZCL tier system. T1 is one heavy main lift, T2 is a volume lift, T3 is accessory work taken close to failure. Progress each tier on its own schedule so one stall does not sink the whole program.',
     days: [
       { name: 'Day 1 — Squat / Bench', slots: [
-        { exercise: SQ,  sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP' },
-        { exercise: BP,  sets: 3, reps: '10', rest: 120, note: 'T2' },
-        { exercise: LAT, sets: 3, reps: '15', rest: 90, note: 'T3 — last set AMRAP' },
+        { exercise: SQ,  sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP', scheme: 'gzclp_t1' },
+        { exercise: BP,  sets: 3, reps: '10', rest: 120, note: 'T2', scheme: 'gzclp_t2' },
+        { exercise: LAT, sets: 3, reps: '15', rest: 90, note: 'T3 — last set AMRAP', scheme: 'gzclp_t3' },
       ]},
       { name: 'Day 2 — OHP / Deadlift', slots: [
-        { exercise: OHP, sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP' },
-        { exercise: DL,  sets: 3, reps: '10', rest: 120, note: 'T2' },
-        { exercise: CROW, sets: 3, reps: '15', rest: 90, note: 'T3' },
+        { exercise: OHP, sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP', scheme: 'gzclp_t1' },
+        { exercise: DL,  sets: 3, reps: '10', rest: 120, note: 'T2', scheme: 'gzclp_t2' },
+        { exercise: CROW, sets: 3, reps: '15', rest: 90, note: 'T3', scheme: 'gzclp_t3' },
       ]},
       { name: 'Day 3 — Bench / Squat', slots: [
-        { exercise: BP, sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP' },
-        { exercise: SQ, sets: 3, reps: '10', rest: 120, note: 'T2' },
-        { exercise: PULL, sets: 3, reps: '15', rest: 90, note: 'T3' },
+        { exercise: BP, sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP', scheme: 'gzclp_t1' },
+        { exercise: SQ, sets: 3, reps: '10', rest: 120, note: 'T2', scheme: 'gzclp_t2' },
+        { exercise: PULL, sets: 3, reps: '15', rest: 90, note: 'T3', scheme: 'gzclp_t3' },
       ]},
       { name: 'Day 4 — Deadlift / OHP', slots: [
-        { exercise: DL,  sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP' },
-        { exercise: OHP, sets: 3, reps: '10', rest: 120, note: 'T2' },
-        { exercise: DIP, sets: 3, reps: '15', rest: 90, note: 'T3' },
+        { exercise: DL,  sets: 5, reps: '3', rest: 180, note: 'T1 — last set AMRAP', scheme: 'gzclp_t1' },
+        { exercise: OHP, sets: 3, reps: '10', rest: 120, note: 'T2', scheme: 'gzclp_t2' },
+        { exercise: DIP, sets: 3, reps: '15', rest: 90, note: 'T3', scheme: 'gzclp_t3' },
       ]},
     ],
   },
@@ -130,6 +137,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.phul',
     name: 'PHUL',
     author: 'Brandon Campbell',
+    scheme: 'double',
     goal: 'powerbuilding',
     daysPerWeek: 4,
     weeks: null,
@@ -173,6 +181,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.ppl',
     name: 'Push Pull Legs',
     author: 'Classic',
+    scheme: 'double',
     goal: 'hypertrophy',
     daysPerWeek: 6,
     weeks: null,
@@ -188,7 +197,7 @@ export const BUILT_IN: ProgramSpec[] = [
         { exercise: DIP,  sets: 3, reps: '8-12', rest: 90 },
       ]},
       { name: 'Pull', slots: [
-        { exercise: DL,   sets: 3, reps: '5', rest: 210 },
+        { exercise: DL,   sets: 3, reps: '5', rest: 210, scheme: 'linear' },
         { exercise: PULL, sets: 4, reps: '6-10', rest: 120 },
         { exercise: CROW, sets: 3, reps: '8-12', rest: 90 },
         { exercise: FACE, sets: 3, reps: '15-20', rest: 60 },
@@ -225,6 +234,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.upperlower',
     name: 'Upper / Lower',
     author: 'Classic',
+    scheme: 'double',
     goal: 'general',
     daysPerWeek: 4,
     weeks: null,
@@ -233,27 +243,27 @@ export const BUILT_IN: ProgramSpec[] = [
       'Four days, two upper, two lower. The best strength-per-hour ratio in lifting, and the easiest split to keep running when life gets in the way — miss a day and you just do it next time.',
     days: [
       { name: 'Upper A', slots: [
-        { exercise: BP,   sets: 4, reps: '5', rest: 180 },
+        { exercise: BP,   sets: 4, reps: '5', rest: 180, scheme: 'linear' },
         { exercise: ROW,  sets: 4, reps: '6-8', rest: 120 },
         { exercise: DBS,  sets: 3, reps: '8-10', rest: 90 },
         { exercise: LAT,  sets: 3, reps: '10-12', rest: 90 },
         { exercise: CURL, sets: 3, reps: '10-12', rest: 60 },
       ]},
       { name: 'Lower A', slots: [
-        { exercise: SQ,   sets: 4, reps: '5', rest: 210 },
+        { exercise: SQ,   sets: 4, reps: '5', rest: 210, scheme: 'linear' },
         { exercise: RDL,  sets: 3, reps: '8-10', rest: 120 },
         { exercise: LEGP, sets: 3, reps: '10-12', rest: 90 },
         { exercise: CALF, sets: 4, reps: '12-15', rest: 45 },
       ]},
       { name: 'Upper B', slots: [
-        { exercise: OHP,  sets: 4, reps: '5', rest: 180 },
+        { exercise: OHP,  sets: 4, reps: '5', rest: 180, scheme: 'linear' },
         { exercise: PULL, sets: 4, reps: 'AMRAP', rest: 120 },
         { exercise: INC,  sets: 3, reps: '8-10', rest: 90 },
         { exercise: CROW, sets: 3, reps: '10-12', rest: 90 },
         { exercise: FACE, sets: 3, reps: '15', rest: 60 },
       ]},
       { name: 'Lower B', slots: [
-        { exercise: DL,   sets: 3, reps: '5', rest: 210 },
+        { exercise: DL,   sets: 3, reps: '5', rest: 210, scheme: 'linear' },
         { exercise: FSQ,  sets: 3, reps: '8', rest: 150 },
         { exercise: LEGC, sets: 3, reps: '10-12', rest: 60 },
         { exercise: CALF, sets: 4, reps: '12-15', rest: 45 },
@@ -264,6 +274,7 @@ export const BUILT_IN: ProgramSpec[] = [
     id: 'builtin.madcow',
     name: 'Madcow 5×5',
     author: 'Classic',
+    scheme: 'linear',
     goal: 'strength',
     daysPerWeek: 3,
     weeks: 12,
@@ -305,7 +316,7 @@ export async function seedBuiltInPrograms(): Promise<void> {
   const version = await d.getFirstAsync<{ value: string }>(
     "SELECT value FROM kv WHERE key = 'builtin_programs_version'",
   );
-  const STAMP = String(BUILT_IN.length) + ':1';
+  const STAMP = String(BUILT_IN.length) + ':2';
   if ((seeded?.n ?? 0) > 0 && version?.value === STAMP) return;
 
   await d.withTransactionAsync(async () => {
@@ -313,9 +324,9 @@ export async function seedBuiltInPrograms(): Promise<void> {
 
     for (const p of BUILT_IN) {
       await d.runAsync(
-        `INSERT INTO program (id, name, author, description, origin, goal, days_per_week, weeks, accent, updated_at, dirty)
-         VALUES (?, ?, ?, ?, 'builtin', ?, ?, ?, ?, ?, 0)`,
-        p.id, p.name, p.author, p.description, p.goal, p.daysPerWeek, p.weeks, p.accent, ts,
+        `INSERT INTO program (id, name, author, description, origin, goal, days_per_week, weeks, accent, default_scheme, updated_at, dirty)
+         VALUES (?, ?, ?, ?, 'builtin', ?, ?, ?, ?, ?, ?, 0)`,
+        p.id, p.name, p.author, p.description, p.goal, p.daysPerWeek, p.weeks, p.accent, p.scheme, ts,
       );
 
       for (const [di, day] of p.days.entries()) {
@@ -330,11 +341,11 @@ export async function seedBuiltInPrograms(): Promise<void> {
           await d.runAsync(
             `INSERT INTO program_slot
                (id, day_id, exercise_id, position, superset_group, target_sets, target_reps,
-                intensity_pct, target_rpe, rest_seconds, notes, updated_at, dirty)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+                intensity_pct, target_rpe, rest_seconds, notes, scheme, updated_at, dirty)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
             `${dayId}.s${si}`, dayId, slot.exercise, si, slot.superset ?? null,
             slot.sets ?? null, slot.reps ?? null, slot.pct ?? null, slot.rpe ?? null,
-            slot.rest ?? null, slot.note ?? null, ts,
+            slot.rest ?? null, slot.note ?? null, slot.scheme ?? null, ts,
           );
         }
       }

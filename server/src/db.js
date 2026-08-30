@@ -4,6 +4,7 @@ import { MongoClient } from 'mongodb';
 export const SYNCED = [
   'program', 'program_day', 'program_slot', 'enrollment',
   'workout', 'logged_set', 'custom_exercise', 'exercise_pref', 'body_metric',
+  'progression_state',
 ];
 
 /**
@@ -14,7 +15,7 @@ export const SYNCED = [
 export const PRIMARY_KEY = {
   program: 'id', program_day: 'id', program_slot: 'id', enrollment: 'id',
   workout: 'id', logged_set: 'id', custom_exercise: 'id',
-  exercise_pref: 'exercise_id', body_metric: 'id',
+  exercise_pref: 'exercise_id', body_metric: 'id', progression_state: 'id',
 };
 
 let client;

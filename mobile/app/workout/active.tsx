@@ -95,11 +95,13 @@ export default function ActiveWorkoutScreen() {
 
   /** Sets arrive flat and ordered; group them into the exercise blocks we render. */
   const groups = useMemo(() => {
-    const out: { exerciseId: string; slotId: string | null; sets: SetRow[] }[] = [];
+    const out: { exerciseId: string; slotId: string | null; sets: SetRow[]; note: string | null }[] = [];
     for (const s of sets) {
       const last = out[out.length - 1];
       if (last && last.exerciseId === s.exercise_id && last.slotId === s.slot_id) last.sets.push(s);
-      else out.push({ exerciseId: s.exercise_id, slotId: s.slot_id, sets: [s] });
+      // The coaching note is written onto the first set of each exercise when
+      // the session is built, so it rides along with the group.
+      else out.push({ exerciseId: s.exercise_id, slotId: s.slot_id, sets: [s], note: s.coach_note });
     }
     return out;
   }, [sets]);
@@ -191,6 +193,7 @@ export default function ActiveWorkoutScreen() {
             key={`${g.exerciseId}-${g.slotId}`}
             exerciseId={g.exerciseId}
             sets={g.sets}
+            note={g.note}
             onComplete={onComplete}
             onAddSet={async () => { await addSetToExercise(workoutId!, g.exerciseId); await reload(); }}
           />
@@ -223,10 +226,11 @@ export default function ActiveWorkoutScreen() {
 /* -------------------------------------------------------- exercise block */
 
 function ExerciseBlock({
-  exerciseId, sets, onComplete, onAddSet,
+  exerciseId, sets, note, onComplete, onAddSet,
 }: {
   exerciseId: string;
   sets: SetRow[];
+  note: string | null;
   onComplete: (row: SetRow, v: { weight: number | null; reps: number | null }) => void;
   onAddSet: () => void;
 }) {
@@ -253,6 +257,15 @@ function ExerciseBlock({
           </Text>
         </View>
       </Touch>
+
+      {/* Why this weight. The lifter should always be able to see the
+          reasoning and disagree with it — the number is a suggestion, not an
+          instruction, and every field stays editable. */}
+      {note && (
+        <View style={styles.coachNote}>
+          <Text variant="caption" color={palette.live}>{note}</Text>
+        </View>
+      )}
 
       <View style={styles.columns}>
         <Text variant="micro" color={palette.ink25} style={{ width: 28 }}>SET</Text>
@@ -389,6 +402,11 @@ const styles = StyleSheet.create({
   blockHead: {
     flexDirection: 'row', alignItems: 'center', gap: space.md,
     paddingHorizontal: space.screen, paddingBottom: space.md,
+  },
+  coachNote: {
+    marginHorizontal: space.screen, marginBottom: space.md,
+    paddingHorizontal: space.md, paddingVertical: space.sm,
+    backgroundColor: 'rgba(214,255,63,0.10)', borderRadius: radius.sm,
   },
   columns: {
     flexDirection: 'row', alignItems: 'center', gap: space.sm,

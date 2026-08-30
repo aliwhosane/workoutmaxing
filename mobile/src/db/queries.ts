@@ -1,12 +1,14 @@
 import { getDb, uuid, now } from './client';
 import { getExercise, type Tracking } from '../data/catalog';
+import { getSettings } from '../settings/store';
+import { suggestForSlot, advanceProgression } from './progression';
 
 /* ------------------------------------------------------------- row types */
 
 export interface ProgramRow {
   id: string; name: string; author: string | null; description: string | null;
   origin: string; goal: string | null; days_per_week: number | null;
-  weeks: number | null; accent: string | null;
+  weeks: number | null; accent: string | null; default_scheme: string | null;
 }
 
 export interface DayRow {
@@ -17,7 +19,7 @@ export interface SlotRow {
   id: string; day_id: string; exercise_id: string; position: number;
   target_sets: number | null; target_reps: string | null;
   intensity_pct: number | null; target_rpe: number | null;
-  rest_seconds: number | null; notes: string | null;
+  rest_seconds: number | null; notes: string | null; scheme: string | null;
 }
 
 export interface WorkoutRow {
@@ -30,6 +32,7 @@ export interface SetRow {
   position: number; set_index: number; kind: string;
   weight_kg: number | null; reps: number | null; duration_s: number | null;
   distance_m: number | null; rpe: number | null; completed_at: number | null;
+  coach_note: string | null;
 }
 
 /* -------------------------------------------------------------- programs */
@@ -128,6 +131,10 @@ export async function finishWorkout(workoutId: string): Promise<void> {
       ts, ts, workoutId,
     );
   });
+
+  // After the commit, so the session just finished is the history the engine
+  // reads when working out what to suggest next time.
+  await advanceProgression(workoutId);
 }
 
 export const discardWorkout = async (workoutId: string) =>
@@ -276,7 +283,9 @@ export const trackingFor = (exerciseId: string): Tracking =>
  * mid-session and came back) it does nothing.
  */
 export async function materializeWorkout(workoutId: string, dayId: string | null): Promise<void> {
-  const existing = await (await getDb()).getFirstAsync<{ n: number }>(
+  const db = await getDb();
+
+  const existing = await db.getFirstAsync<{ n: number }>(
     'SELECT COUNT(*) AS n FROM logged_set WHERE workout_id = ? AND deleted_at IS NULL',
     workoutId,
   );
@@ -285,28 +294,54 @@ export async function materializeWorkout(workoutId: string, dayId: string | null
   const slots = await listSlots(dayId);
   if (slots.length === 0) return;
 
-  const prefs = await getPrefs(slots.map((s) => s.exercise_id));
-  const prefBy = new Map(prefs.map((p) => [p.exercise_id, p]));
+  const workout = await db.getFirstAsync<{ program_id: string | null }>(
+    'SELECT program_id FROM workout WHERE id = ?', workoutId,
+  );
+  const programId = workout?.program_id ?? null;
+  const program = programId ? await getProgram(programId) : null;
+  const unit = getSettings().weightUnit;
 
-  const d = await getDb();
-  await d.withTransactionAsync(async () => {
-    for (const slot of slots) {
-      const pref = prefBy.get(slot.exercise_id);
+  /**
+   * Ask the progression engine what to put in front of the lifter for each
+   * slot. Suggestions are computed before the transaction opens because they
+   * read history, and we do not want a long read holding a write lock.
+   */
+  const planned = await Promise.all(
+    slots.map(async (slot) => ({
+      slot,
+      suggestion: await suggestForSlot(
+        {
+          exerciseId: slot.exercise_id,
+          targetSets: slot.target_sets,
+          targetReps: slot.target_reps,
+          targetRpe: slot.target_rpe,
+          scheme: slot.scheme,
+        },
+        programId,
+        program?.default_scheme ?? null,
+        unit,
+      ),
+    })),
+  );
+
+  await db.withTransactionAsync(async () => {
+    for (const { slot, suggestion } of planned) {
       const tracking = trackingFor(slot.exercise_id);
-      // "8-12" prescribes a range; seed the bottom of it, which is the honest
-      // target — you earn the top of the range, you don't start there.
-      const reps = parseReps(slot.target_reps) ?? pref?.last_reps ?? null;
+      const sets = suggestion.targetSets || slot.target_sets || 3;
 
-      for (let i = 0; i < (slot.target_sets ?? 3); i++) {
-        await d.runAsync(
+      for (let i = 0; i < sets; i++) {
+        await db.runAsync(
           `INSERT INTO logged_set
              (id, workout_id, exercise_id, slot_id, position, set_index, kind,
-              weight_kg, reps, duration_s, updated_at, dirty)
-           VALUES (?, ?, ?, ?, ?, ?, 'working', ?, ?, ?, ?, 1)`,
+              weight_kg, reps, duration_s, coach_note, updated_at, dirty)
+           VALUES (?, ?, ?, ?, ?, ?, 'working', ?, ?, ?, ?, ?, 1)`,
           uuid(), workoutId, slot.exercise_id, slot.id, slot.position, i,
-          tracking === 'weight_reps' ? pref?.last_weight ?? null : null,
-          tracking === 'duration' ? null : reps,
+          tracking === 'weight_reps' ? suggestion.weightKg : null,
+          tracking === 'duration' ? null : suggestion.reps,
           tracking === 'duration' ? 60 : null,
+          // Only the first set of an exercise carries the reason, so the UI has
+          // one place to show it rather than repeating it down the block.
+          i === 0 ? suggestion.note : null,
           now(),
         );
       }

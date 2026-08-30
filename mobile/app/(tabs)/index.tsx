@@ -13,6 +13,10 @@ import {
   startWorkout, type SlotRow, type ProgramRow, type DayRow, type WorkoutRow,
 } from '../../src/db/queries';
 
+/** Eight-tooth cog, generated geometrically: tips at r=9.3, roots at r=7.4. */
+const GEAR_PATH =
+  'M19.08 9.84L21.19 10.55A9.3 9.3 0 0 1 21.19 13.45L19.08 14.16A7.4 7.4 0 0 1 18.53 15.47L19.52 17.47A9.3 9.3 0 0 1 17.47 19.52L15.47 18.53A7.4 7.4 0 0 1 14.16 19.08L13.45 21.19A9.3 9.3 0 0 1 10.55 21.19L9.84 19.08A7.4 7.4 0 0 1 8.53 18.53L6.53 19.52A9.3 9.3 0 0 1 4.48 17.47L5.47 15.47A7.4 7.4 0 0 1 4.92 14.16L2.81 13.45A9.3 9.3 0 0 1 2.81 10.55L4.92 9.84A7.4 7.4 0 0 1 5.47 8.53L4.48 6.53A9.3 9.3 0 0 1 6.53 4.48L8.53 5.47A7.4 7.4 0 0 1 9.84 4.92L10.55 2.81A9.3 9.3 0 0 1 13.45 2.81L14.16 4.92A7.4 7.4 0 0 1 15.47 5.47L17.47 4.48A9.3 9.3 0 0 1 19.52 6.53L18.53 8.53A7.4 7.4 0 0 1 19.08 9.84Z';
+
 /**
  * Today.
  *
@@ -82,11 +86,17 @@ export default function TodayScreen() {
             scaleTo={0.9}
           >
             <Svg width={22} height={22} viewBox="0 0 24 24">
-              <Circle cx={12} cy={12} r={3.2} stroke={palette.ink45} strokeWidth={1.9} fill="none" />
+              {/* A cog, not a sun. The teeth are joined to a ring whose root
+                  sits just under the tip — detached rays off a small disc is
+                  precisely how a sun is drawn, which is what this was. */}
               <Path
-                d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M17.9 6.1l-1.4 1.4M7.5 16.5l-1.4 1.4M17.9 17.9l-1.4-1.4M7.5 7.5L6.1 6.1"
-                stroke={palette.ink45} strokeWidth={1.9} strokeLinecap="round" fill="none"
+                d={GEAR_PATH}
+                stroke={palette.ink45}
+                strokeWidth={1.6}
+                strokeLinejoin="round"
+                fill="none"
               />
+              <Circle cx={12} cy={12} r={3.1} stroke={palette.ink45} strokeWidth={1.6} fill="none" />
             </Svg>
           </Touch>
           <Text variant="micro" color={palette.ink45}>

@@ -12,7 +12,8 @@ export interface ProgramRow {
 }
 
 export interface DayRow {
-  id: string; program_id: string; day_index: number; name: string; notes: string | null;
+  id: string; program_id: string; week: number | null;
+  day_index: number; name: string; notes: string | null;
 }
 
 export interface SlotRow {
@@ -45,9 +46,48 @@ export const listPrograms = async () =>
 export const getProgram = async (id: string) =>
 (await getDb()).getFirstAsync<ProgramRow>('SELECT * FROM program WHERE id = ? AND deleted_at IS NULL', id);
 
+/**
+ * Days of a program.
+ *
+ * Two shapes exist. Most programs are a repeating weekly split and store
+ * `week IS NULL` — the same days run forever. Wave programs (5/3/1 and its
+ * relatives) prescribe different percentages in week 1, 2 and 3, and store a
+ * week number on each day.
+ *
+ * Passing `week` returns that week's days for a wave program, and is simply
+ * ignored by a repeating one — so callers never have to know which kind they
+ * are looking at.
+ */
+export async function daysForWeek(programId: string, week: number): Promise<DayRow[]> {
+  const db = await getDb();
+
+  const waved = await db.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM program_day WHERE program_id = ? AND week IS NOT NULL AND deleted_at IS NULL',
+    programId,
+  );
+  if ((waved?.n ?? 0) === 0) return listDays(programId);
+
+  // Programs repeat once their last week is done, so week 4 of a 3-week wave
+  // is week 1 again.
+  const weeks = await db.getFirstAsync<{ n: number }>(
+    'SELECT COUNT(DISTINCT week) AS n FROM program_day WHERE program_id = ? AND week IS NOT NULL AND deleted_at IS NULL',
+    programId,
+  );
+  const total = Math.max(1, weeks?.n ?? 1);
+  const effective = ((week - 1) % total) + 1;
+
+  return db.getAllAsync<DayRow>(
+    `SELECT * FROM program_day
+     WHERE program_id = ? AND week = ? AND deleted_at IS NULL
+     ORDER BY day_index`,
+    programId, effective,
+  );
+}
+
+/** Every day of a program, ignoring weeks. Used for editing and previewing. */
 export const listDays = async (programId: string) =>
 (await getDb()).getAllAsync<DayRow>(
-    'SELECT * FROM program_day WHERE program_id = ? AND deleted_at IS NULL ORDER BY day_index',
+    'SELECT * FROM program_day WHERE program_id = ? AND deleted_at IS NULL ORDER BY week, day_index',
     programId,
   );
 
@@ -84,11 +124,18 @@ export async function enroll(programId: string): Promise<string> {
   return id;
 }
 
-/** Called when a session finishes — rolls the plan to the next day. */
+/**
+ * Called when a session finishes — rolls the plan to the next day, and to the
+ * next week once the week's days are used up.
+ *
+ * `dayCount` is the days in the *current week*, not the whole program, so a
+ * three-week wave advances a week every three sessions rather than every nine.
+ */
 export async function advanceEnrollment(enrollmentId: string, dayCount: number): Promise<void> {
   const d = await getDb();
   const e = await d.getFirstAsync<ActiveEnrollment>('SELECT * FROM enrollment WHERE id = ?', enrollmentId);
-  if (!e) return;
+  if (!e || dayCount <= 0) return;
+
   const next = e.current_day + 1;
   const wrapped = next >= dayCount;
   await d.runAsync(

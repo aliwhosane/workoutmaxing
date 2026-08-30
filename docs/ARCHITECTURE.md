@@ -120,6 +120,26 @@ nothing.
 `tm_percent` scheme exists: shipping an approximation of nSuns under its own
 name would be worse than not shipping it.
 
+### Wave programs
+
+Most plans are a repeating weekly split and store `week IS NULL`. Wave programs
+— 5/3/1 and its relatives — prescribe different percentages in weeks 1, 2 and 3
+and store a week number per day. `daysForWeek()` hides the difference from
+callers, and enrollment tracks which week the lifter is in.
+
+### What does and does not get reproduced
+
+Programs are only added when their full prescription is published free by their
+author and can be verified against at least two independent sources. Nothing in
+this file is invented: a plan we cannot source accurately is left out rather
+than approximated, because a program that is subtly wrong under a real coach's
+name is worse than an absent one.
+
+Paid and coach-exclusive programs — the ones authors sell as books or license to
+a platform — are deliberately not reproduced, regardless of how popular they
+are. The `ProgramSpec` schema is general enough that any of them drops in as
+data if properly licensed.
+
 Built-ins are seeded with `origin='builtin'` and re-seeded wholesale on version
 change. A user's own plans and all logged history are never touched by that.
 

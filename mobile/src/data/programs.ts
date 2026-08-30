@@ -28,7 +28,16 @@ export interface SlotSpec {
   note?: string;
 }
 
-export interface DaySpec { name: string; slots: SlotSpec[]; note?: string }
+export interface DaySpec {
+  name: string;
+  slots: SlotSpec[];
+  note?: string;
+  /**
+   * Which week of a wave this day belongs to. Omitted for the majority of
+   * programs, which are a repeating weekly split with no wave at all.
+   */
+  week?: number;
+}
 
 export interface ProgramSpec {
   id: string;
@@ -70,7 +79,79 @@ const FACE = 'Face_Pull';
 const PUSH = 'Pushups';
 const PLANK = 'Plank';
 
+/**
+ * 5/3/1's three-week wave, exactly as Wendler publishes it.
+ *
+ * Each main lift is three ascending singles-to-fives off the training max, the
+ * last taken for as many reps as possible, followed by First Set Last: five
+ * sets of five back at the opening weight.
+ *
+ * Written as data rather than by hand because the same twelve slots repeat for
+ * six lift-slots across three weeks, and transcribing seventy-odd rows by hand
+ * is how percentages get typed wrong.
+ */
+const WAVE_531 = [
+  { week: 1, sets: [{ pct: 0.65, reps: '5' }, { pct: 0.75, reps: '5' }, { pct: 0.85, reps: '5' }], fsl: 0.65 },
+  { week: 2, sets: [{ pct: 0.70, reps: '3' }, { pct: 0.80, reps: '3' }, { pct: 0.90, reps: '3' }], fsl: 0.70 },
+  { week: 3, sets: [{ pct: 0.75, reps: '5' }, { pct: 0.85, reps: '3' }, { pct: 0.95, reps: '1' }], fsl: 0.75 },
+];
+
+/** The four slots one main lift occupies in a 5/3/1 session. */
+function mainLift531(exercise: string, wave: (typeof WAVE_531)[number]): SlotSpec[] {
+  return [
+    ...wave.sets.map((set, i) => ({
+      exercise,
+      sets: 1,
+      reps: set.reps,
+      pct: set.pct,
+      rest: 180,
+      scheme: 'tm_percent' as const,
+      note: i === wave.sets.length - 1
+        ? `Top set — as many reps as possible`
+        : `${Math.round(set.pct * 100)}% of training max`,
+    })),
+    {
+      exercise, sets: 5, reps: '5', pct: wave.fsl, rest: 150,
+      scheme: 'tm_percent' as const, note: 'First Set Last',
+    },
+  ];
+}
+
+/** Day 1 squat+bench, day 2 deadlift+press, day 3 bench+squat — across three weeks. */
+function build531Beginners(): DaySpec[] {
+  const pairs: [string, string, string][] = [
+    [SQ, BP, 'Squat & Bench'],
+    [DL, OHP, 'Deadlift & Press'],
+    [BP, SQ, 'Bench & Squat'],
+  ];
+  const assistance: SlotSpec[] = [
+    { exercise: PULL, sets: 5, reps: '10', rest: 60, note: 'Pull — 50-100 total reps' },
+    { exercise: DIP,  sets: 5, reps: '10', rest: 60, note: 'Push — 50-100 total reps' },
+  ];
+
+  return WAVE_531.flatMap((wave) =>
+    pairs.map(([first, second, name]) => ({
+      week: wave.week,
+      name,
+      slots: [...mainLift531(first, wave), ...mainLift531(second, wave), ...assistance],
+    })),
+  );
+}
+
 export const BUILT_IN: ProgramSpec[] = [
+  {
+    id: 'builtin.531beginners',
+    name: '5/3/1 for Beginners',
+    author: 'Jim Wendler',
+    scheme: 'tm_percent',
+    goal: 'strength',
+    daysPerWeek: 3,
+    weeks: 3,
+    accent: '#A3E635',
+    description:
+      'Wendler’s system condensed into three full-body days, so a beginner gets twice the practice on the big lifts. Everything runs off a training max at 90% of your real max, which means the weights are always makeable and the last set is where you find out what you have.',
+    days: build531Beginners(),
+  },
   {
     id: 'builtin.stronglifts',
     name: 'StrongLifts 5×5',
@@ -553,7 +634,7 @@ export async function seedBuiltInPrograms(): Promise<void> {
   const version = await d.getFirstAsync<{ value: string }>(
     "SELECT value FROM kv WHERE key = 'builtin_programs_version'",
   );
-  const STAMP = String(BUILT_IN.length) + ':3';
+  const STAMP = String(BUILT_IN.length) + ':4';
   if ((seeded?.n ?? 0) > 0 && version?.value === STAMP) return;
 
   await d.withTransactionAsync(async () => {
@@ -570,8 +651,12 @@ export async function seedBuiltInPrograms(): Promise<void> {
         const dayId = `${p.id}.d${di}`;
         await d.runAsync(
           `INSERT INTO program_day (id, program_id, week, day_index, name, notes, updated_at, dirty)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, 0)`,
-          dayId, p.id, di, day.name, day.note ?? null, ts,
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+          dayId, p.id, day.week ?? null,
+          // Wave programs restart their day index each week, so week 2 day 1
+          // sorts first within week 2 rather than fourth overall.
+          day.week != null ? di % (p.daysPerWeek || 1) : di,
+          day.name, day.note ?? null, ts,
         );
 
         for (const [si, slot] of day.slots.entries()) {

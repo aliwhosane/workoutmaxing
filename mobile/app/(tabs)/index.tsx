@@ -8,7 +8,7 @@ import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { palette, space, radius, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
 import {
-  getActiveEnrollment, getProgram, listDays, listSlots, getOpenWorkout,
+  getActiveEnrollment, getProgram, daysForWeek, listSlots, getOpenWorkout,
   startWorkout, type SlotRow, type ProgramRow, type DayRow, type WorkoutRow,
 } from '../../src/db/queries';
 
@@ -40,7 +40,7 @@ export default function TodayScreen() {
       return;
     }
     const p = await getProgram(enrollment.program_id);
-    const days = p ? await listDays(p.id) : [];
+    const days = p ? await daysForWeek(p.id, enrollment.current_week) : [];
     const today = days[enrollment.current_day % Math.max(days.length, 1)] ?? null;
     setProgram(p ?? null);
     setDay(today);
@@ -102,7 +102,10 @@ export default function TodayScreen() {
           {program && (
             <>
               <Spacer h={space.xs} />
-              <Text variant="label" color={palette.ink45}>{program.name}</Text>
+              <Text variant="label" color={palette.ink45}>
+                {program.name}
+                {day?.week != null ? `  ·  Week ${day.week}` : ''}
+              </Text>
             </>
           )}
         </View>

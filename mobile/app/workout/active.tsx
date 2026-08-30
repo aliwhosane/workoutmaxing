@@ -19,7 +19,7 @@ import { displayToKg, weightFieldValue } from '../../src/settings/units';
 import {
   listSets, completeSet, uncompleteSet, finishWorkout, discardWorkout,
   materializeWorkout, addSetToExercise, listSlots, advanceEnrollment,
-  getActiveEnrollment, listDays, type SetRow,
+  getActiveEnrollment, daysForWeek, type SetRow,
 } from '../../src/db/queries';
 import { getDb } from '../../src/db/client';
 
@@ -154,7 +154,9 @@ export default function ActiveWorkoutScreen() {
 
           const enrollment = await getActiveEnrollment();
           if (enrollment) {
-            const days = await listDays(enrollment.program_id);
+            // The current week's day count, so a three-week wave rolls to the
+            // next week after three sessions rather than after nine.
+            const days = await daysForWeek(enrollment.program_id, enrollment.current_week);
             await advanceEnrollment(enrollment.id, days.length);
           }
 

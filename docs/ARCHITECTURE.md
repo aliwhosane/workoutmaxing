@@ -333,8 +333,10 @@ Switching plans confirms first, naming what is being stopped.
 
 ## Known gaps
 
-- Sync has not been run against a live MongoDB instance (awaiting credentials)
-- Google sign-in needs OAuth client ids in `.env` before it appears
+- Sync is verified end to end against the live DynamoDB table: push, pull from
+  zero, cursor deltas and idempotent re-push. Not yet exercised from a phone
+- Google sign-in needs an Android OAuth client (package + SHA-1) before it
+  works on Android; iOS is configured
 - Health and Google sign-in need a development build; both are correctly
   inert in Expo Go, but that means neither has been exercised end to end yet
 - Warmup-set generation and plate maths (which plates to load)

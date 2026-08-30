@@ -16,6 +16,8 @@ export type SchemeKind =
   | 'gzclp_t1' | 'gzclp_t2' | 'gzclp_t3'
   /** Autoregulated: hold a target RPE, correcting load by how far off the last set landed. */
   | 'rpe'
+  /** Load is a percentage of a training max; the AMRAP set drives the max. 5/3/1, nSuns. */
+  | 'tm_percent'
   /** Hold whatever was done last time. The honest default when nothing else applies. */
   | 'hold';
 
@@ -59,6 +61,10 @@ export interface SuggestInput {
   /** The prescription as written: "5", "8-12", "AMRAP". */
   targetReps: string | null;
   targetRpe?: number | null;
+  /** Percentage of training max this slot prescribes, for `tm_percent`. */
+  intensityPct?: number | null;
+  /** A starting point for the training max when none has been established. */
+  seedOneRepMaxKg?: number | null;
   state: ProgressionState | null;
   lastSession: LastSession | null;
 }

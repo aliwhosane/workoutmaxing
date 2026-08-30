@@ -68,8 +68,245 @@ const CALF = 'Standing_Calf_Raises';
 const LATR = 'Side_Lateral_Raise';
 const FACE = 'Face_Pull';
 const PUSH = 'Pushups';
+const PLANK = 'Plank';
 
 export const BUILT_IN: ProgramSpec[] = [
+  {
+    id: 'builtin.stronglifts',
+    name: 'StrongLifts 5×5',
+    author: 'Mehdi Hadim',
+    scheme: 'linear',
+    goal: 'strength',
+    daysPerWeek: 3,
+    weeks: null,
+    accent: '#93C5FD',
+    description:
+      'Five sets of five, two alternating workouts, three days a week. The most-run beginner program in the world — the volume is what makes it work, and the simplicity is what makes people stick to it.',
+    days: [
+      { name: 'Workout A', slots: [
+        { exercise: SQ,  sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: BP,  sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: ROW, sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+      ]},
+      { name: 'Workout B', slots: [
+        { exercise: SQ,  sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: OHP, sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: DL,  sets: 1, reps: '5', rest: 180, scheme: 'linear', note: 'One work set only' },
+      ]},
+      { name: 'Workout A', slots: [
+        { exercise: SQ,  sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: BP,  sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: ROW, sets: 5, reps: '5', rest: 180, scheme: 'linear' },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.greyskull',
+    name: 'GreySkull LP',
+    author: 'John Sheaffer',
+    scheme: 'linear',
+    goal: 'strength',
+    daysPerWeek: 3,
+    weeks: null,
+    accent: '#C4B5FD',
+    description:
+      'Linear progression with the last set taken for as many reps as possible. The AMRAP set is the point: it tells you honestly whether the weight is still yours, so progress never depends on guessing.',
+    days: [
+      { name: 'Workout A', slots: [
+        { exercise: OHP, sets: 3, reps: '5', rest: 150, scheme: 'linear', note: 'Last set AMRAP' },
+        { exercise: SQ,  sets: 3, reps: '5', rest: 180, scheme: 'linear', note: 'Last set AMRAP' },
+        { exercise: PULL, sets: 3, reps: 'AMRAP', rest: 120 },
+      ]},
+      { name: 'Workout B', slots: [
+        { exercise: BP,  sets: 3, reps: '5', rest: 150, scheme: 'linear', note: 'Last set AMRAP' },
+        { exercise: DL,  sets: 1, reps: '5', rest: 210, scheme: 'linear', note: 'One set, AMRAP' },
+        { exercise: CROW, sets: 3, reps: '8-12', rest: 90 },
+      ]},
+      { name: 'Workout A', slots: [
+        { exercise: OHP, sets: 3, reps: '5', rest: 150, scheme: 'linear', note: 'Last set AMRAP' },
+        { exercise: SQ,  sets: 3, reps: '5', rest: 180, scheme: 'linear', note: 'Last set AMRAP' },
+        { exercise: DIP, sets: 3, reps: 'AMRAP', rest: 120 },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.531bbb',
+    name: '5/3/1 Boring But Big',
+    author: 'Jim Wendler',
+    scheme: 'tm_percent',
+    goal: 'powerbuilding',
+    daysPerWeek: 4,
+    weeks: 4,
+    accent: '#FDE047',
+    description:
+      'One main lift a day at a percentage of your training max, then five sets of ten of the same movement. Wendler’s most popular variation — heavy enough to get strong, enough volume to get big, and it runs for years.',
+    days: [
+      { name: 'Press Day', slots: [
+        { exercise: OHP, sets: 1, reps: '5', pct: 0.85, rest: 210, scheme: 'tm_percent', note: 'Top set — AMRAP' },
+        { exercise: OHP, sets: 5, reps: '10', pct: 0.50, rest: 90, scheme: 'tm_percent', note: 'Boring But Big' },
+        { exercise: LAT, sets: 5, reps: '10', rest: 90 },
+      ]},
+      { name: 'Deadlift Day', slots: [
+        { exercise: DL, sets: 1, reps: '5', pct: 0.85, rest: 240, scheme: 'tm_percent', note: 'Top set — AMRAP' },
+        { exercise: DL, sets: 5, reps: '10', pct: 0.50, rest: 120, scheme: 'tm_percent', note: 'Boring But Big' },
+        { exercise: LEGC, sets: 5, reps: '10', rest: 90 },
+      ]},
+      { name: 'Bench Day', slots: [
+        { exercise: BP, sets: 1, reps: '5', pct: 0.85, rest: 210, scheme: 'tm_percent', note: 'Top set — AMRAP' },
+        { exercise: BP, sets: 5, reps: '10', pct: 0.50, rest: 90, scheme: 'tm_percent', note: 'Boring But Big' },
+        { exercise: CROW, sets: 5, reps: '10', rest: 90 },
+      ]},
+      { name: 'Squat Day', slots: [
+        { exercise: SQ, sets: 1, reps: '5', pct: 0.85, rest: 240, scheme: 'tm_percent', note: 'Top set — AMRAP' },
+        { exercise: SQ, sets: 5, reps: '10', pct: 0.50, rest: 120, scheme: 'tm_percent', note: 'Boring But Big' },
+        { exercise: LEGC, sets: 5, reps: '10', rest: 90 },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.nsuns',
+    name: 'nSuns 5/3/1 LP',
+    author: 'r/fitness community',
+    scheme: 'tm_percent',
+    goal: 'strength',
+    daysPerWeek: 5,
+    weeks: null,
+    accent: '#F97316',
+    description:
+      'A very high-volume take on 5/3/1 that progresses weekly instead of monthly. Nine sets of a main lift and eight of a secondary, every session. Brutal, and one of the most effective intermediate programs there is.',
+    days: [
+      { name: 'Bench / OHP', slots: [
+        { exercise: BP,  sets: 8, reps: '5', pct: 0.85, rest: 180, scheme: 'tm_percent', note: 'T1 — set 3 is AMRAP' },
+        { exercise: OHP, sets: 8, reps: '6', pct: 0.50, rest: 120, scheme: 'tm_percent', note: 'T2' },
+        { exercise: FACE, sets: 3, reps: '15', rest: 60 },
+      ]},
+      { name: 'Squat / Sumo Deadlift', slots: [
+        { exercise: SQ, sets: 8, reps: '5', pct: 0.85, rest: 210, scheme: 'tm_percent', note: 'T1 — set 3 is AMRAP' },
+        { exercise: DL, sets: 8, reps: '5', pct: 0.50, rest: 150, scheme: 'tm_percent', note: 'T2' },
+        { exercise: LEGC, sets: 3, reps: '12', rest: 60 },
+      ]},
+      { name: 'OHP / Incline', slots: [
+        { exercise: OHP, sets: 8, reps: '5', pct: 0.85, rest: 180, scheme: 'tm_percent', note: 'T1 — set 3 is AMRAP' },
+        { exercise: INC, sets: 8, reps: '6', pct: 0.50, rest: 120, scheme: 'tm_percent', note: 'T2' },
+        { exercise: LATR, sets: 3, reps: '15', rest: 60 },
+      ]},
+      { name: 'Deadlift / Front Squat', slots: [
+        { exercise: DL,  sets: 8, reps: '5', pct: 0.85, rest: 240, scheme: 'tm_percent', note: 'T1 — set 3 is AMRAP' },
+        { exercise: FSQ, sets: 8, reps: '5', pct: 0.50, rest: 150, scheme: 'tm_percent', note: 'T2' },
+        { exercise: CROW, sets: 3, reps: '12', rest: 60 },
+      ]},
+      { name: 'Bench / Close Grip', slots: [
+        { exercise: BP,  sets: 8, reps: '5', pct: 0.80, rest: 180, scheme: 'tm_percent', note: 'T1 — set 3 is AMRAP' },
+        { exercise: INC, sets: 8, reps: '6', pct: 0.50, rest: 120, scheme: 'tm_percent', note: 'T2' },
+        { exercise: CURL, sets: 3, reps: '12', rest: 60 },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.phat',
+    name: 'PHAT',
+    author: 'Dr. Layne Norton',
+    scheme: 'double',
+    goal: 'powerbuilding',
+    daysPerWeek: 5,
+    weeks: null,
+    accent: '#F472B6',
+    description:
+      'Power Hypertrophy Adaptive Training. Two heavy power days and three high-volume hypertrophy days, so every muscle is trained twice a week — once for strength, once for size. The powerbuilding template most others copy.',
+    days: [
+      { name: 'Upper Power', slots: [
+        { exercise: ROW, sets: 3, reps: '3-5', rest: 180, scheme: 'linear' },
+        { exercise: LAT, sets: 2, reps: '6-10', rest: 120 },
+        { exercise: BP,  sets: 3, reps: '3-5', rest: 180, scheme: 'linear' },
+        { exercise: DBP, sets: 2, reps: '6-10', rest: 120 },
+        { exercise: OHP, sets: 3, reps: '6-10', rest: 120 },
+        { exercise: CURL, sets: 3, reps: '6-10', rest: 90 },
+      ]},
+      { name: 'Lower Power', slots: [
+        { exercise: SQ,   sets: 3, reps: '3-5', rest: 210, scheme: 'linear' },
+        { exercise: LEGP, sets: 2, reps: '6-10', rest: 120 },
+        { exercise: LEGC, sets: 3, reps: '6-10', rest: 90 },
+        { exercise: RDL,  sets: 3, reps: '5-8', rest: 150 },
+        { exercise: CALF, sets: 4, reps: '6-10', rest: 60 },
+      ]},
+      { name: 'Back & Shoulders', slots: [
+        { exercise: ROW,  sets: 6, reps: '3', rest: 60, note: 'Speed work — about 65% of power day' },
+        { exercise: LAT,  sets: 3, reps: '8-12', rest: 90 },
+        { exercise: CROW, sets: 3, reps: '8-12', rest: 90 },
+        { exercise: LATR, sets: 4, reps: '12-15', rest: 60 },
+        { exercise: FACE, sets: 3, reps: '15-20', rest: 60 },
+      ]},
+      { name: 'Chest & Arms', slots: [
+        { exercise: BP,   sets: 6, reps: '3', rest: 60, note: 'Speed work — about 65% of power day' },
+        { exercise: INC,  sets: 3, reps: '8-12', rest: 90 },
+        { exercise: DBP,  sets: 3, reps: '12-15', rest: 60 },
+        { exercise: CURL, sets: 3, reps: '8-12', rest: 60 },
+        { exercise: DIP,  sets: 3, reps: '10-15', rest: 60 },
+      ]},
+      { name: 'Legs', slots: [
+        { exercise: SQ,   sets: 6, reps: '3', rest: 60, note: 'Speed work — about 65% of power day' },
+        { exercise: LEGP, sets: 3, reps: '10-15', rest: 90 },
+        { exercise: LEGE, sets: 3, reps: '15-20', rest: 60 },
+        { exercise: LEGC, sets: 3, reps: '10-15', rest: 60 },
+        { exercise: CALF, sets: 4, reps: '12-15', rest: 45 },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.texas',
+    name: 'Texas Method',
+    author: 'Mark Rippetoe & Glenn Pendlay',
+    scheme: 'linear',
+    goal: 'strength',
+    daysPerWeek: 3,
+    weeks: null,
+    accent: '#FB7185',
+    description:
+      'The classic answer when adding weight every session stops working. Volume on Monday, recovery on Wednesday, a new personal record on Friday — progress moves to a weekly cycle instead of a daily one.',
+    days: [
+      { name: 'Monday — Volume', slots: [
+        { exercise: SQ,  sets: 5, reps: '5', rest: 210, note: '5×5 across, same weight' },
+        { exercise: BP,  sets: 5, reps: '5', rest: 180 },
+        { exercise: DL,  sets: 1, reps: '5', rest: 240 },
+      ]},
+      { name: 'Wednesday — Light', slots: [
+        { exercise: SQ,  sets: 2, reps: '5', rest: 150, note: 'About 80% of Monday' },
+        { exercise: OHP, sets: 3, reps: '5', rest: 150 },
+        { exercise: PULL, sets: 3, reps: 'AMRAP', rest: 120 },
+      ]},
+      { name: 'Friday — Intensity', slots: [
+        { exercise: SQ,  sets: 1, reps: '5', rest: 240, scheme: 'linear', note: 'One heavy set — a new 5RM' },
+        { exercise: BP,  sets: 1, reps: '5', rest: 240, scheme: 'linear', note: 'One heavy set' },
+        { exercise: ROW, sets: 3, reps: '5', rest: 150 },
+      ]},
+    ],
+  },
+  {
+    id: 'builtin.minimalist',
+    name: 'Minimalist Full Body',
+    author: 'Classic',
+    scheme: 'linear',
+    goal: 'general',
+    daysPerWeek: 2,
+    weeks: null,
+    accent: '#5EEAD4',
+    description:
+      'Two days a week, four movements a session, in and out in forty minutes. Built for people whose lives will not allow more — and it beats the perfect program you never actually run.',
+    days: [
+      { name: 'Day 1', slots: [
+        { exercise: SQ,   sets: 3, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: BP,   sets: 3, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: ROW,  sets: 3, reps: '8', rest: 120 },
+        { exercise: PLANK, sets: 3, reps: '45', rest: 60 },
+      ]},
+      { name: 'Day 2', slots: [
+        { exercise: DL,   sets: 3, reps: '5', rest: 210, scheme: 'linear' },
+        { exercise: OHP,  sets: 3, reps: '5', rest: 180, scheme: 'linear' },
+        { exercise: PULL, sets: 3, reps: 'AMRAP', rest: 120 },
+        { exercise: LEGP, sets: 3, reps: '10', rest: 90 },
+      ]},
+    ],
+  },
   {
     id: 'builtin.nlp',
     name: 'Novice Linear Progression',
@@ -316,7 +553,7 @@ export async function seedBuiltInPrograms(): Promise<void> {
   const version = await d.getFirstAsync<{ value: string }>(
     "SELECT value FROM kv WHERE key = 'builtin_programs_version'",
   );
-  const STAMP = String(BUILT_IN.length) + ':2';
+  const STAMP = String(BUILT_IN.length) + ':3';
   if ((seeded?.n ?? 0) > 0 && version?.value === STAMP) return;
 
   await d.withTransactionAsync(async () => {

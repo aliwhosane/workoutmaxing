@@ -48,6 +48,10 @@ belongs in Settings, framed as sync.
   missing a column the code expects. Add a new version instead. This already
   bit us once: `coach_note` was appended to v2 after v2 had run, and the column
   simply never appeared.
+- Soft deletes and terminal actions must not race. A workout could be discarded
+  and then finished, leaving `deleted_at` set on a real session so history hid
+  it. Dismissing a screen from an Alert callback is not instant — guard with a
+  ref so no further writes land.
 - A screen that navigates away and returns needs `useFocusEffect` to refetch.
   The exercise picker writes to SQLite and pops; without it the logger showed
   stale state and adding an exercise looked like it did nothing.

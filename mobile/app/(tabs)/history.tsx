@@ -53,7 +53,7 @@ export default function HistoryScreen() {
                     {new Date(e.started_at).toLocaleDateString(undefined, {
                       weekday: 'short', month: 'short', day: 'numeric',
                     })}
-                    {'  ·  '}{e.set_count} sets
+                    {'  ·  '}{e.set_count} {e.set_count === 1 ? 'set' : 'sets'}
                     {e.finished_at ? `  ·  ${Math.round((e.finished_at - e.started_at) / 60000)} min` : ''}
                   </Text>
                 </View>

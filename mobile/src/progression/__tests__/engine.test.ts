@@ -206,10 +206,60 @@ test('RPE holds when the last session landed on target', () => {
   assert.equal(s.weightKg, 100);
 });
 
+/* --------------------------------------------------------- training max % */
+
+test('training max is seeded at 90% of an estimated 1RM', () => {
+  const session: LastSession = {
+    performedAt: Date.now(),
+    sets: [{ weightKg: 100, reps: 5, targetReps: 5, completed: true }],
+  };
+  const s = suggest(base({
+    scheme: 'tm_percent', intensityPct: 1, targetReps: '5', lastSession: session,
+  }));
+  // Brzycki e1RM of 100x5 is 112.5; the training max is 90% of that.
+  assert.ok(Math.abs(s.nextState.trainingMaxKg! - 101.25) < 0.01);
+});
+
+test('training max climbs further the more reps the AMRAP set produced', () => {
+  const at = (reps: number) => {
+    const session: LastSession = {
+      performedAt: Date.now(),
+      sets: [{ weightKg: 100, reps, targetReps: 5, completed: true }],
+    };
+    const state = {
+      exerciseId: 'x', programId: null, scheme: 'tm_percent' as const,
+      stage: 0, failures: 0, workingKg: null, trainingMaxKg: 100,
+    };
+    return suggest(base({
+      scheme: 'tm_percent', intensityPct: 1, targetReps: '5', lastSession: session, state,
+    })).nextState.trainingMaxKg!;
+  };
+  assert.equal(at(5), 100, 'meeting the minimum holds');
+  assert.ok(at(6) > at(5), 'one over earns a step');
+  assert.ok(at(8) > at(6), 'three over earns more');
+  assert.ok(at(10) > at(8), 'five over earns most');
+  assert.ok(at(3) < 100, 'falling short brings the max back down');
+});
+
+test('training max percentage prescribes a fraction of the max, not the max', () => {
+  const session: LastSession = {
+    performedAt: Date.now(),
+    sets: [{ weightKg: 100, reps: 5, targetReps: 5, completed: true }],
+  };
+  const state = {
+    exerciseId: 'x', programId: null, scheme: 'tm_percent' as const,
+    stage: 0, failures: 0, workingKg: null, trainingMaxKg: 100,
+  };
+  const s = suggest(base({
+    scheme: 'tm_percent', intensityPct: 0.7, targetReps: '5', lastSession: session, state,
+  }));
+  assert.equal(s.weightKg, 70, '70% of a 100 kg training max');
+});
+
 /* -------------------------------------------------- invariants across all */
 
 test('any weight the engine changes lands on something loadable', () => {
-  const schemes = ['linear', 'double', 'gzclp_t1', 'gzclp_t2', 'gzclp_t3', 'rpe'] as const;
+  const schemes = ['linear', 'double', 'gzclp_t1', 'gzclp_t2', 'gzclp_t3', 'rpe', 'tm_percent'] as const;
   for (const unit of ['kg', 'lb'] as const) {
     const step = plateStep(unit);
     for (const scheme of schemes) {

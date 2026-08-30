@@ -126,8 +126,14 @@ export async function finishWorkout(workoutId: string): Promise<void> {
       'DELETE FROM logged_set WHERE workout_id = ? AND completed_at IS NULL',
       workoutId,
     );
+    /**
+     * Clearing `deleted_at` is not redundant. A session could previously be
+     * discarded and then finished — the discard prompt and the finish path both
+     * wrote to the same row — which left a fully logged workout invisible to
+     * history. Finishing is the later and more deliberate act, so it wins.
+     */
     await d.runAsync(
-      'UPDATE workout SET finished_at = ?, updated_at = ?, dirty = 1 WHERE id = ?',
+      'UPDATE workout SET finished_at = ?, deleted_at = NULL, updated_at = ?, dirty = 1 WHERE id = ?',
       ts, ts, workoutId,
     );
   });
@@ -315,6 +321,7 @@ export async function materializeWorkout(workoutId: string, dayId: string | null
           targetSets: slot.target_sets,
           targetReps: slot.target_reps,
           targetRpe: slot.target_rpe,
+          intensityPct: slot.intensity_pct,
           scheme: slot.scheme,
         },
         programId,

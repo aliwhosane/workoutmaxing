@@ -110,6 +110,16 @@ other apps are their authors' copyrighted work and are not reproduced here. The
 program schema is general enough that a licensed program drops in as data with
 no code change — `ProgramSpec` in `mobile/src/data/programs.ts`.
 
+Thirteen plans ship, chosen to cover the frequencies people actually train at —
+2, 3, 4, 5 and 6 days a week — because how many days you can train is the first
+thing that rules a plan in or out. The Plans screen filters on exactly that, and
+the filter is derived from the seeded programs so a chip can never return
+nothing.
+
+5/3/1 and nSuns are percentage-of-training-max programs, which is why the
+`tm_percent` scheme exists: shipping an approximation of nSuns under its own
+name would be worse than not shipping it.
+
 Built-ins are seeded with `origin='builtin'` and re-seeded wholesale on version
 change. A user's own plans and all logged history are never touched by that.
 
@@ -144,6 +154,7 @@ expects GZCLP's actual rules.
 | `gzclp_t2` | 3×10 → 3×8 → 3×6; new cycle restarts *heavier* | GZCLP tier 2 |
 | `gzclp_t3` | Add load once the AMRAP set clears 25 reps | GZCLP tier 3 |
 | `rpe` | Correct load by ~4% per rep away from target RPE | Available; no built-in uses it yet |
+| `tm_percent` | Load is a % of a training max; the AMRAP set moves the max | 5/3/1 BBB, nSuns |
 
 Increments follow the universal convention: upper body moves one plate step
 (2.5 kg / 5 lb), lower body two.
@@ -219,5 +230,7 @@ on a bezier curve. Durations exist only for opacity.
   inert in Expo Go, but that means neither has been exercised end to end yet
 - Warmup-set generation and plate maths (which plates to load)
 - No built-in program uses the `rpe` scheme yet; it needs RPE capture in the logger
+- nSuns' true per-set percentage ramp is simplified to one working percentage
+  per slot; faithful ramps need per-set intensities in `program_slot`
 - Progress charts beyond estimated 1RM
 - Separate bodyweight unit (stone) — the units layer extends to it cleanly

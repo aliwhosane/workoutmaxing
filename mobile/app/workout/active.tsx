@@ -85,6 +85,14 @@ export default function ActiveWorkoutScreen() {
    * Skipped on the very first focus, where the setup effect above is already
    * mid-flight and would otherwise race it to an empty result.
    */
+  /**
+   * Set once the session is discarded. Dismissing a modal from inside an Alert
+   * callback is not instantaneous, so without this the screen stays live long
+   * enough for the user to log another set and finish — which is exactly how a
+   * workout ended up both discarded and finished, and vanished from history.
+   */
+  const discarded = useRef(false);
+
   const setupDone = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -109,6 +117,7 @@ export default function ActiveWorkoutScreen() {
   const done = sets.filter((s) => s.completed_at).length;
 
   const onComplete = useCallback(async (row: SetRow, values: { weight: number | null; reps: number | null }) => {
+    if (discarded.current) return;
     if (row.completed_at) {
       await uncompleteSet(row.id);
       setRest(null);
@@ -121,12 +130,17 @@ export default function ActiveWorkoutScreen() {
   }, [reload, restBySlot]);
 
   const onFinish = () => {
+    if (discarded.current) return;
     if (done === 0) {
       Alert.alert('Nothing logged', 'Discard this session?', [
         { text: 'Keep going', style: 'cancel' },
         {
           text: 'Discard', style: 'destructive',
-          onPress: async () => { await discardWorkout(workoutId!); router.back(); },
+          onPress: async () => {
+            discarded.current = true;
+            await discardWorkout(workoutId!);
+            router.back();
+          },
         },
       ]);
       return;

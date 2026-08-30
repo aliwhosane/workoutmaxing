@@ -14,7 +14,7 @@
  * grows. Only a user's own edits (custom exercises) hit the database.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const MIGRATIONS: string[][] = [
   // ---- v1 ----------------------------------------------------------------
@@ -222,6 +222,22 @@ export const MIGRATIONS: string[][] = [
      * still there in history months later.
      */
     `ALTER TABLE logged_set ADD COLUMN coach_note TEXT;`,
+  ],
+
+  // ---- v4: rescue sessions that were discarded and then finished ------------
+  //
+  // A workout could end up carrying both `deleted_at` and `finished_at`: the
+  // logger let a discard and a finish both land on the same session, and since
+  // history filters on `deleted_at IS NULL`, a session with real logged sets in
+  // it simply vanished.
+  //
+  // Finishing is the later, more deliberate act, and keeping a session the user
+  // meant to throw away is far cheaper than losing one they actually trained.
+  // So finishing wins, and these rows come back.
+  [
+    `UPDATE workout
+        SET deleted_at = NULL, dirty = 1
+      WHERE finished_at IS NOT NULL AND deleted_at IS NOT NULL;`,
   ],
 ];
 

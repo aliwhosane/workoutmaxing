@@ -74,6 +74,7 @@ export function suggest(input: SuggestInput): Suggestion {
     case 'gzclp_t2': return gzclpT2(input, state);
     case 'gzclp_t3': return gzclpT3(input, state);
     case 'rpe':      return rpe(input, state);
+    case 'tm_percent': return trainingMaxPercent(input, state);
     default:         return hold(input, state);
   }
 }
@@ -367,6 +368,75 @@ function rpe(input: SuggestInput, state: ProgressionState): Suggestion {
           : `${fmtStep(next - top.weightKg, input.unit)} — last session went past RPE ${targetRpe}`,
     nextState: { ...state, workingKg: next, trainingMaxKg: e1rm },
   };
+}
+
+/* -------------------------------------------------- percentage of training max */
+
+/**
+ * 5/3/1 and its descendants (nSuns, BBB).
+ *
+ * Load is a fixed percentage of a *training max* — deliberately 90% of a true
+ * 1RM, so the prescribed weights are always achievable even on a bad day and
+ * the AMRAP set has room to be meaningful.
+ *
+ * The training max, not the session weight, is what progresses. How far it
+ * moves is decided by the AMRAP set: a top set that produced six reps has
+ * earned more than one that produced two. These thresholds are nSuns' and are
+ * expressed in plate steps so they read correctly in either unit.
+ */
+const TM_FACTOR = 0.9;
+
+function trainingMaxPercent(input: SuggestInput, state: ProgressionState): Suggestion {
+  const session = input.lastSession!;
+  const top = topSetOf(session);
+  const pct = input.intensityPct ?? 1;
+  const step = plateStepFor(input);
+
+  // Establish a training max the first time, from the best set on record.
+  let tm = state.trainingMaxKg;
+  if (tm == null) {
+    const basis = top && top.weightKg != null && top.reps != null
+      ? estimate1RM(top.weightKg, top.reps)
+      : input.seedOneRepMaxKg ?? null;
+    if (basis == null) return hold(input, state);
+    tm = basis * TM_FACTOR;
+  }
+
+  /**
+   * The AMRAP set is the last set of the heaviest work, and its rep count is
+   * the whole signal. Fewer than the prescribed minimum means the training max
+   * has drifted above what is real, and it comes back down.
+   */
+  const amrap = session.sets[session.sets.length - 1];
+  const reps = amrap?.reps ?? 0;
+  const prescribed = parseRepRange(input.targetReps)?.min ?? 1;
+
+  let delta = 0;
+  let why: string;
+  if (reps >= prescribed + 5)      { delta = step * 3; why = `${reps} reps on the top set`; }
+  else if (reps >= prescribed + 3) { delta = step * 2; why = `${reps} reps on the top set`; }
+  else if (reps >= prescribed + 1) { delta = step;     why = `${reps} reps on the top set`; }
+  else if (reps >= prescribed)     { delta = 0;        why = `holding — you met the minimum`; }
+  else                             { delta = -step * 2; why = `easing off — the top set fell short`; }
+
+  const nextTm = Math.max(step, tm + delta);
+  const weight = roundToLoadable(nextTm * pct, input.unit);
+
+  return {
+    weightKg: weight,
+    reps: prescribed,
+    targetSets: input.targetSets,
+    note: `${Math.round(pct * 100)}% of a ${fmtWeight(nextTm, input.unit)} training max — ${why}`,
+    nextState: { ...state, trainingMaxKg: nextTm, workingKg: weight, failures: 0 },
+  };
+}
+
+/** The plate step in kilograms for whichever unit the lifter is using. */
+const plateStepFor = (input: SuggestInput) => sessionIncrement(input.unit, false);
+
+function fmtWeight(kg: number, unit: 'kg' | 'lb'): string {
+  const v = unit === 'kg' ? kg : kg * 2.2046226218487757;
+  return `${Math.round(v)} ${unit}`;
 }
 
 /* -------------------------------------------------------------------- hold */

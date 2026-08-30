@@ -129,6 +129,7 @@ export interface SlotForSuggestion {
   targetSets: number | null;
   targetReps: string | null;
   targetRpe: number | null;
+  intensityPct: number | null;
   scheme: string | null;
 }
 
@@ -158,6 +159,7 @@ export async function suggestForSlot(
     targetSets: slot.targetSets ?? 3,
     targetReps: slot.targetReps,
     targetRpe: slot.targetRpe,
+    intensityPct: slot.intensityPct,
     state: state ?? { 
       exerciseId: slot.exerciseId, programId, scheme,
       stage: 0, failures: 0, workingKg: null, trainingMaxKg: null,
@@ -198,9 +200,10 @@ export async function advanceProgression(workoutId: string): Promise<void> {
     // The distinct lifts trained, with the prescription each was given.
     const lifts = await db.getAllAsync<{
       exercise_id: string; target_sets: number | null; target_reps: string | null;
-      target_rpe: number | null; scheme: string | null;
+      target_rpe: number | null; intensity_pct: number | null; scheme: string | null;
     }>(
-      `SELECT DISTINCT s.exercise_id, sl.target_sets, sl.target_reps, sl.target_rpe, sl.scheme
+      `SELECT DISTINCT s.exercise_id, sl.target_sets, sl.target_reps, sl.target_rpe,
+              sl.intensity_pct, sl.scheme
        FROM logged_set s
        LEFT JOIN program_slot sl ON sl.id = s.slot_id
        WHERE s.workout_id = ? AND s.completed_at IS NOT NULL AND s.deleted_at IS NULL`,
@@ -224,6 +227,7 @@ export async function advanceProgression(workoutId: string): Promise<void> {
         targetSets: lift.target_sets ?? 3,
         targetReps: lift.target_reps,
         targetRpe: lift.target_rpe,
+        intensityPct: lift.intensity_pct,
         state: state ?? {
           exerciseId: lift.exercise_id, programId, scheme,
           stage: 0, failures: 0, workingKg: null, trainingMaxKg: null,

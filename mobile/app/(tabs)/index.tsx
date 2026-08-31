@@ -84,6 +84,9 @@ export default function TodayScreen() {
             onPress={() => router.push('/settings')}
             haptic="light"
             scaleTo={0.9}
+            // Forgiveness beyond the box itself, for a control at the very edge
+            // of the screen where thumbs land imprecisely.
+            hitSlop={{ top: space.sm, bottom: space.sm, left: space.md, right: space.md }}
           >
             <Svg width={22} height={22} viewBox="0 0 24 24">
               {/* A cog, not a sun. The teeth are joined to a ring whose root
@@ -200,8 +203,24 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.void },
   head: { paddingHorizontal: space.screen },
   settings: {
-    position: 'absolute', right: space.screen - space.sm, top: -space.sm,
-    width: touch.min, height: touch.min, alignItems: 'center', justifyContent: 'center',
+    position: 'absolute',
+    right: space.screen - space.md,
+    /**
+     * Zero, not a negative offset. Android does not deliver touches that fall
+     * outside a parent's bounds — iOS quietly does — so hanging the control
+     * above its container silently killed the top of an already-small target.
+     *
+     * The box is `comfortable` rather than `min`: 44 is Apple's floor, Android
+     * asks for 48, and this is a corner control people reach for one-handed.
+     * The icon is pinned toward the top of that box so it sits where it always
+     * did while the tappable area grows downward, inside the parent.
+     */
+    top: 0,
+    width: touch.comfortable,
+    height: touch.comfortable,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: space.xs,
   },
   list: { paddingHorizontal: space.screen, gap: space.lg },
   slot: { flexDirection: 'row', alignItems: 'center', gap: space.md },

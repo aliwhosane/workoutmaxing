@@ -52,6 +52,10 @@ belongs in Settings, framed as sync.
   and then finished, leaving `deleted_at` set on a real session so history hid
   it. Dismissing a screen from an Alert callback is not instant — guard with a
   ref so no further writes land.
+- **Android drops touches that land outside a parent's bounds**; iOS delivers
+  them. A control positioned with a negative offset therefore loses part of its
+  tap target on Android only, and silently. Keep interactive elements inside
+  their parent and grow them with `hitSlop`.
 - A screen that navigates away and returns needs `useFocusEffect` to refetch.
   The exercise picker writes to SQLite and pops; without it the logger showed
   stale state and adding an exercise looked like it did nothing.

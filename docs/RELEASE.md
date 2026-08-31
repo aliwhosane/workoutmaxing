@@ -45,9 +45,10 @@ That cannot ship:
 - Android blocks cleartext in release builds.
 - The address is not reachable from the internet.
 
-You need the `server/` app running somewhere with a TLS certificate. It is a
-small stateless Node service, so anything works: Fly.io, Railway, Render, an EC2
-instance behind a load balancer, or Lambda + API Gateway.
+You need the `server/` app running somewhere with a TLS certificate.
+[`docs/DEPLOY.md`](./DEPLOY.md) covers this: Lambda behind a Function URL, which
+costs nothing at this scale and needs no server to maintain. `server/scripts/deploy.sh`
+does it in one command.
 
 Whatever you choose:
 

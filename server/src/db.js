@@ -46,13 +46,22 @@ let client;
 let doc;
 let tableName;
 
-export async function connect(table, region) {
+/**
+ * Opens the client.
+ *
+ * `ensureIndex` is opt-in rather than automatic. On a long-running server the
+ * cost of one DescribeTable at boot is nothing, but on Lambda `connect` runs on
+ * every cold start, and paying an extra round trip — plus the IAM permission to
+ * alter the table — on every one of them to check a fact that changes once in
+ * the table's life is the wrong trade. `npm run setup` does it deliberately.
+ */
+export async function connect(table, region, { ensureIndexExists = false } = {}) {
   tableName = table;
   client = new DynamoDBClient({ region });
   doc = DynamoDBDocumentClient.from(client, {
     marshallOptions: { removeUndefinedValues: true, convertClassInstanceToMap: true },
   });
-  await ensureIndex();
+  if (ensureIndexExists) await ensureIndex();
   return doc;
 }
 
@@ -71,7 +80,7 @@ export const rowKey = (userId, logicalTable, id) => `${userId}#${logicalTable}#$
  * backfills, and Queries against it fail until it is ready, so we surface the
  * state rather than pretending sync is available.
  */
-async function ensureIndex() {
+export async function ensureIndex() {
   const described = await client.send(new DescribeTableCommand({ TableName: tableName }));
   const existing = described.Table.GlobalSecondaryIndexes ?? [];
   const found = existing.find((i) => i.IndexName === GSI);

@@ -6,11 +6,13 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "node --env-file=.env --watch src/index.js",
-    "start": "node --env-file=.env src/index.js"
+    "start": "node --env-file=.env src/index.js",
+    "setup": "node --env-file=.env src/setup.js"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1121.0",
     "@aws-sdk/lib-dynamodb": "^3.1121.0",
+    "@fastify/aws-lambda": "^6.4.1",
     "@fastify/cors": "^10.0.2",
     "fastify": "^5.2.1",
     "jose": "^5.9.6"

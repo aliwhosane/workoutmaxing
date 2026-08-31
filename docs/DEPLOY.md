@@ -101,6 +101,43 @@ curl https://<your-url>/health
 
 ---
 
+## If the Function URL returns "Forbidden"
+
+The function is fine — confirm it with a direct invoke, which bypasses the URL
+entirely:
+
+```bash
+aws lambda invoke --function-name workout-maxing-sync --region us-east-1 \
+  --payload '{"version":"2.0","rawPath":"/health","requestContext":{"http":{"method":"GET","path":"/health"}},"headers":{}}' \
+  /dev/stdout
+```
+
+A `{"ok":true}` back means the code, the adapter and DynamoDB all work, and only
+public access to the URL is being refused.
+
+Check, in order:
+
+1. **Lambda → your function → Configuration → Function URL** in the console. New
+   AWS accounts can have public access to function URLs blocked by default, and
+   the setting is not exposed in every CLI version.
+2. **Account-level Block Public Access** for Lambda, if your account has it.
+3. Any SCP, if the account belongs to an organisation.
+
+If it cannot be unblocked, put an **API Gateway HTTP API** in front instead. It
+needs `AmazonAPIGatewayAdministrator` on the deploying user, and costs $1.00 per
+million requests after the first year — around two cents a month at this scale.
+
+## New accounts start at 10 concurrent executions
+
+A fresh AWS account is capped at **10** concurrent Lambda executions rather than
+the usual 1,000. That is enough for testing and nowhere near enough for launch:
+sync is quick, but ten simultaneous requests is a small number of users all
+finishing a workout at once. Request an increase through Service Quotas —
+"Concurrent executions" — before you ship. It is free and usually granted
+quickly, but it is not instant.
+
+---
+
 ## What the running service is allowed to do
 
 The role the script creates grants exactly four DynamoDB actions —

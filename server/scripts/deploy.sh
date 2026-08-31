@@ -18,7 +18,20 @@ ROLE_NAME="${FUNCTION}-role"
 
 cd "$(dirname "$0")/.."
 
-: "${JWT_SECRET:?set JWT_SECRET — generate a fresh one for production}"
+# The session secret is generated once and then lives in the function's own
+# configuration. Reusing it on redeploy matters: changing it invalidates every
+# session token, so a routine code push would otherwise sign every user out.
+if [ -z "${JWT_SECRET:-}" ]; then
+  EXISTING=$(aws lambda get-function-configuration --function-name "$FUNCTION" \
+    --region "$REGION" --query 'Environment.Variables.JWT_SECRET' --output text 2>/dev/null || true)
+  if [ -n "${EXISTING:-}" ] && [ "$EXISTING" != "None" ] && [ "$EXISTING" != "null" ]; then
+    JWT_SECRET="$EXISTING"
+    echo "==> reusing the deployed session secret"
+  else
+    JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")
+    echo "==> generated a new session secret (kept in the function's config)"
+  fi
+fi
 
 echo "==> installing production dependencies"
 rm -rf .deploy function.zip && mkdir -p .deploy

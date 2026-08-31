@@ -39,9 +39,31 @@ export function formatWeight(kg: number | null | undefined, unit: WeightUnit): s
   return trim(kgToDisplay(kg, unit), 2);
 }
 
-/** Same number without the unit suffix, for editable fields. */
+/**
+ * Same number without the unit suffix, for editable fields.
+ *
+ * One decimal, not two. A weight entered in the unit being displayed round
+ * trips exactly and shows no decimals at all; the fractions only appear when
+ * the stored value came from the *other* unit, and 220.5 lb communicates that
+ * far better than 220.46 does.
+ *
+ * Callers must not write this value back unless the user actually edited it —
+ * see the note on `weightUnchanged`.
+ */
 export const weightFieldValue = (kg: number | null | undefined, unit: WeightUnit) =>
-  kg == null ? '' : trim(kgToDisplay(kg, unit), 2);
+  kg == null ? '' : trim(kgToDisplay(kg, unit), 1);
+
+/**
+ * Whether a field still holds the value it was rendered with.
+ *
+ * Editable weights are shown rounded, so committing an untouched field would
+ * write the rounded number back and quietly move the stored weight. Any screen
+ * that saves an edited set has to leave untouched fields alone rather than
+ * round-tripping them through the display.
+ */
+export const weightUnchanged = (
+  text: string, original: number | null | undefined, unit: WeightUnit,
+) => text === weightFieldValue(original, unit);
 
 /* ---------------------------------------------------------------- distance */
 

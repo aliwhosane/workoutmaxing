@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { suggest } from '../engine';
 import { estimate1RM, roundToLoadable, plateStep, parseRepRange } from '../math';
+import { displayToKg, weightFieldValue, weightUnchanged } from '../../settings/units';
 import type { LastSession, SuggestInput } from '../types';
 
 /** A session where every set hit its target. */
@@ -321,4 +322,34 @@ test('rounding snaps to the plate step in both units', () => {
   assert.equal(roundToLoadable(64, 'kg'), 65);
   const lb = roundToLoadable(100, 'lb') / 0.45359237;
   assert.ok(Math.abs(lb - Math.round(lb / 5) * 5) < 1e-9, 'lb results land on 5 lb steps');
+});
+
+/* ------------------------------------------------- weight display fidelity */
+
+test('a weight entered in the displayed unit round trips exactly', () => {
+  // The common case: a lifter in pounds types 225, which is stored as
+  // kilograms and must read back as 225 with no decimals.
+  for (const lb of [45, 95, 135, 185, 225, 315, 405]) {
+    const kg = displayToKg(lb, 'lb');
+    assert.equal(weightFieldValue(kg, 'lb'), String(lb), `${lb} lb`);
+  }
+});
+
+test('a kilogram-native weight shown in pounds stays legible', () => {
+  // 100 kg is 220.462 lb. Two decimals is noise on a weight field.
+  assert.equal(weightFieldValue(100, 'lb'), '220.5');
+  assert.equal(weightFieldValue(60, 'lb'), '132.3');
+});
+
+test('an untouched field is recognised as unchanged, so it is never rewritten', () => {
+  // This is what stops a rounded display being written back and moving the
+  // stored weight by a fraction of a kilogram every time a set is saved.
+  const kg = 100;
+  const shown = weightFieldValue(kg, 'lb');   // "220.5"
+  assert.ok(weightUnchanged(shown, kg, 'lb'), 'untouched');
+  assert.ok(!weightUnchanged('225', kg, 'lb'), 'edited');
+
+  // And the drift it prevents: committing the shown value would store 220.5 lb.
+  const drifted = displayToKg(Number(shown), 'lb');
+  assert.ok(Math.abs(drifted - kg) > 0.01, 'the rounded value really is different');
 });

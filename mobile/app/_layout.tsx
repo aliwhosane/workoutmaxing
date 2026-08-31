@@ -72,6 +72,9 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
           <Stack.Screen name="settings" options={{ presentation: 'card' }} />
+          {/* A past session, opened from history. A card, unlike the logger
+              below it, which takes over the screen while you are training. */}
+          <Stack.Screen name="workout/[id]" options={{ presentation: 'card' }} />
           {/* The logger is a full-screen takeover: while you are training,
               there is nothing else in the app. */}
           <Stack.Screen

@@ -17,7 +17,7 @@ import { getExercise } from '../../src/data/catalog';
 import { useSettings, getSettings } from '../../src/settings/store';
 import { health } from '../../src/health';
 import { syncInBackground } from '../../src/sync/service';
-import { displayToKg, weightFieldValue } from '../../src/settings/units';
+import { displayToKg, weightFieldValue, weightUnchanged } from '../../src/settings/units';
 import {
   listSets, completeSet, uncompleteSet, finishWorkout, discardWorkout,
   materializeWorkout, addSetToExercise, listSlots, advanceEnrollment,
@@ -369,7 +369,11 @@ function SetRowView({
         scaleTo={0.88}
         onPress={() =>
           onComplete(row, {
-            weight: weight ? displayToKg(Number(weight), weightUnit) : null,
+            // Same rule as editing history: a prefilled weight the lifter did
+            // not touch is stored exactly as it was suggested.
+            weight: weightUnchanged(weight, row.weight_kg, weightUnit)
+              ? row.weight_kg
+              : weight ? displayToKg(Number(weight), weightUnit) : null,
             reps: reps ? Number(reps) : null,
           })
         }

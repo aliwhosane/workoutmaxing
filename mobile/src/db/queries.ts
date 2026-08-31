@@ -237,11 +237,48 @@ export async function finishWorkout(workoutId: string): Promise<void> {
   await advanceProgression(workoutId);
 }
 
-export const discardWorkout = async (workoutId: string) =>
+/**
+ * Removes a session — abandoning one mid-flight, or deleting a finished one
+ * from history.
+ *
+ * A soft delete, so the removal reaches the user's other devices instead of the
+ * session reappearing on the next sync. The sets stay in the table; they are
+ * unreachable through the workout and go with it when the account is deleted.
+ */
+export const deleteWorkout = async (workoutId: string) =>
 (await getDb()).runAsync(
     'UPDATE workout SET deleted_at = ?, updated_at = ?, dirty = 1 WHERE id = ?',
     now(), now(), workoutId,
   );
+
+/** The same operation, named for what the logger is doing when it calls it. */
+export const discardWorkout = deleteWorkout;
+
+export const getWorkout = async (workoutId: string) =>
+(await getDb()).getFirstAsync<WorkoutRow>(
+    'SELECT * FROM workout WHERE id = ? AND deleted_at IS NULL',
+    workoutId,
+  );
+
+/**
+ * Corrects the numbers on a set that is already recorded.
+ *
+ * Deliberately does not touch `completed_at`: fixing a typo in last Tuesday's
+ * squat should not move it to today, which is what reusing `completeSet` would
+ * do — and would quietly corrupt both history and the progression engine's idea
+ * of when the lift was last trained.
+ */
+export async function updateSetValues(
+  setId: string,
+  values: { weightKg?: number | null; reps?: number | null; durationS?: number | null },
+): Promise<void> {
+  await (await getDb()).runAsync(
+    `UPDATE logged_set
+        SET weight_kg = ?, reps = ?, duration_s = ?, updated_at = ?, dirty = 1
+      WHERE id = ?`,
+    values.weightKg ?? null, values.reps ?? null, values.durationS ?? null, now(), setId,
+  );
+}
 
 export const listSets = async (workoutId: string) =>
 (await getDb()).getAllAsync<SetRow>(

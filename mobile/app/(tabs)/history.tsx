@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
-import { Text, Spacer, Rule } from '../../src/design/primitives';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { Text, Touch, Spacer, Rule } from '../../src/design/primitives';
 import { palette, space } from '../../src/design/tokens';
 import { listHistory, historyTotals, type HistoryEntry, type HistoryTotals } from '../../src/db/queries';
 import { startOfWeek } from '../../src/settings/week';
@@ -11,6 +12,7 @@ import { formatVolume } from '../../src/settings/units';
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { weightUnit } = useSettings();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   /**
@@ -55,7 +57,14 @@ export default function HistoryScreen() {
           {entries.map((e, i) => (
             <View key={e.id}>
               {i > 0 && <Rule inset={space.screen} />}
-              <View style={styles.row}>
+              {/* A finished session is not frozen: tapping it opens the record
+                  so a mistyped weight can be corrected, or the whole thing
+                  deleted. */}
+              <Touch
+                style={styles.row}
+                onPress={() => router.push(`/workout/${e.id}`)}
+                scaleTo={0.99}
+              >
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text variant="bodyMed" numberOfLines={1}>{e.name}</Text>
                   <Text variant="caption" color={palette.ink45}>
@@ -69,7 +78,11 @@ export default function HistoryScreen() {
                 <Text variant="label" color={palette.ink70} numeric>
                   {e.volume_kg > 0 ? `${formatVolume(e.volume_kg, weightUnit)} ${weightUnit}` : ''}
                 </Text>
-              </View>
+                <Svg width={18} height={18} viewBox="0 0 24 24">
+                  <Path d="M9 5l7 7-7 7" stroke={palette.ink25} strokeWidth={2}
+                    strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </Svg>
+              </Touch>
             </View>
           ))}
         </>

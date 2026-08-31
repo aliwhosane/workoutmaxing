@@ -293,6 +293,27 @@ choice is free to change at any time, cannot corrupt history, and two devices
 set to different units show the same data correctly. Round-trips are verified
 exact across both units at real gym weights.
 
+## Editing what is already recorded
+
+A finished session is not frozen. Tapping it in history opens the record, where
+individual sets can be corrected, single sets deleted, or the whole session
+removed — all soft deletes, so a removal reaches the lifter's other devices
+rather than the session reappearing on the next sync.
+
+Correcting a set deliberately leaves `completed_at` alone. Fixing a typo in last
+Tuesday's squat must not move it to today, which is what reusing `completeSet`
+would do, and would corrupt both history and the progression engine's idea of
+when the lift was last trained.
+
+### Never write back a number you rounded
+
+Editable weight fields display a rounded value — a kilogram-native weight shown
+in pounds is 220.5, not 220.462. Committing an untouched field would therefore
+store the rounded number and move the weight by a fraction every time the set
+was saved. `weightUnchanged()` exists for exactly this: a field still holding
+what it was rendered with keeps its stored value untouched. The same guard
+applies in the logger, where prefilled suggestions face the identical hazard.
+
 ## Accounts
 
 There is **no sign-in gate**. Every exercise, program and logged set works

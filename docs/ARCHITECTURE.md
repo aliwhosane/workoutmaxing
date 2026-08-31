@@ -297,6 +297,22 @@ meant to touch. If a spacing value isn't on the 4pt grid in `space`, it's wrong.
 Motion is spring-based throughout, because nothing in the physical world moves
 on a bezier curve. Durations exist only for opacity.
 
+## The tab bar
+
+The tab bar is the system's, not ours — `NativeTabs` from
+`expo-router/unstable-native-tabs`, on both platforms.
+
+On iOS 26 that yields the floating Liquid Glass island: detached from the
+screen edge, capsule-ended, contracting to a pill as content scrolls under it.
+None of that is reproducible convincingly by styling a view. On Android the same
+component produces proper Material bottom navigation, with the label under the
+selected destination as that platform expects.
+
+The trade is icons: SF Symbols on iOS, Material glyphs on Android, rather than
+the drawn set the app used before. For navigation chrome that is the right way
+round — a tab bar should look like the operating system's. Everything inside the
+app is still drawn by us.
+
 ## Materials
 
 The app is a flat black sheet. The only things that sit *above* content are the
@@ -306,7 +322,7 @@ is the single place that decides what that material is:
 
 | Platform | Material |
 |---|---|
-| iOS 26+ | Liquid Glass via `expo-glass-effect` — a real `UIVisualEffectView` that refracts content scrolling beneath |
+| iOS 26+ | Liquid Glass via `expo-glass-effect` — a real `UIVisualEffectView` that refracts content scrolling beneath. Used for the docks and rest timer; the tab bar gets its glass from the system instead |
 | Android | Material 3 tonal elevation — a surface lifts by getting *lighter*, not translucent. Not a fallback; it is what M3 actually specifies |
 | | (this has to be a real tone step: painting chrome the same colour as the background, as the first cut did, removes the separation entirely) |
 | Older iOS | The same tonal surface |

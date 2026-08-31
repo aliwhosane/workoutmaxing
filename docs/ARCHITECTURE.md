@@ -175,8 +175,29 @@ through import instead.
 ### Import
 
 `src/data/importProgram.ts` parses a pasted program into the same shape the
-built-ins use. It is pure and tested, and tolerant by design — people paste out
-of spreadsheets and PDFs and the formatting is never clean.
+built-ins use. It is pure and tested.
+
+**There is no standard interchange format for training programs.** Nothing like
+iCal exists here; every app is proprietary. So this parser is not implementing a
+specification — it is recognising the handful of notations lifters genuinely
+use, which is a different and more testable goal.
+
+Measured against program text in the shapes people actually paste:
+
+| Source | Reads |
+|---|---|
+| Spreadsheet row (tab separated) | yes |
+| Forum or Reddit post, markdown bullets | yes |
+| Book or PDF, `3 sets x 5 reps` with dot leaders | yes |
+| Blog listing, `4 sets of 6-8 reps` | yes |
+| Our own documented format | yes |
+| A coach's text message, many lifts on one line | **no** |
+
+The last is left unsupported on purpose: several exercises on one comma-separated
+line is genuinely ambiguous — `@225` could be a weight or a percentage, and
+splitting on commas breaks exercise names containing them. Guessing there would
+produce a plan that looks imported but is quietly wrong, which is worse than
+declining.
 
 Two decisions in there are load-bearing, and both exist because the failure they
 prevent is silent:

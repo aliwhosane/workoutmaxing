@@ -8,12 +8,14 @@ import { palette, space, radius, type as typo, touch } from '../../src/design/to
 import { getExercise } from '../../src/data/catalog';
 import { parse, saveImportedProgram } from '../../src/db/programImport';
 
-const PLACEHOLDER = `Week 1
-Day 1 — Squat & Bench
-Squat 1x5 @65%
-Squat 1x5 @75%
-Squat 1x5+ @85% (top set AMRAP)
-Bench Press 5x5 @65% rest 150`;
+const PLACEHOLDER = `Day 1 — Upper
+Bench Press 4 sets of 6-8
+Barbell Row 4x8
+Overhead Press 3x10
+
+Day 2 — Lower
+Barbell Squat 5x5 @75%
+Romanian Deadlift 3 sets of 8-10`;
 
 /**
  * Import a program by pasting it.
@@ -74,9 +76,11 @@ export default function ImportProgramScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text variant="caption" color={palette.ink45} style={styles.blurb}>
-          Paste a plan — one exercise per line, like “Squat 5x5 @75%”. Start a
-          line with “Week 2” or “Day 1” to break it up. Whatever you paste stays
-          on this phone.
+          Paste a plan from anywhere — a spreadsheet, a PDF, a forum post, a
+          coach’s email. It reads the usual ways people write sets:
+          “Squat 5x5”, “3 sets of 8-12”, “@75%”, “RPE 8”. Anything it can’t
+          place is listed below rather than guessed at, and whatever you paste
+          stays on this phone.
         </Text>
 
         <TextInput

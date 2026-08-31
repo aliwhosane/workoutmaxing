@@ -51,10 +51,34 @@ const DAY_HEADER_RE = /^\s*day\b/i;
 const HEADER_RE = /^\s*(name|title|program|author|coach)\s*[:\-]\s*(.+)$/i;
 
 /**
- * `5x5`, `5 x 5`, `5×5`, `3x8-12`, `1x5+`, `5xAMRAP`.
- * The `+` suffix is lifting shorthand for "and as many more as you can".
+ * How people actually write sets and reps.
+ *
+ * The compact form — `5x5`, `5 × 5`, `3x8-12`, `1x5+`, `5xAMRAP` — is what
+ * lifters type. The `+` suffix is shorthand for "and as many more as you can".
  */
 const SETS_REPS_RE = /(\d+)\s*[x×]\s*(amrap|\d+\s*[-–]\s*\d+|\d+\+?)/i;
+
+/**
+ * The spelled-out form, which is what books, blogs and PDFs use:
+ * `3 sets x 5 reps`, `4 sets of 6-8 reps`, `3 sets of 8`.
+ *
+ * Without this the parser returns nothing at all for a large share of the
+ * program text people would reasonably paste, which is worse than useless —
+ * it looks like the app cannot read their program.
+ */
+const SETS_REPS_WORDS_RE =
+  /(\d+)\s*sets?\s*(?:x|×|of)\s*(amrap|\d+\s*[-–]\s*\d+|\d+\+?)\s*(?:reps?)?/i;
+
+/** Either notation, whichever the line uses. */
+function matchSetsReps(line: string): RegExpMatchArray | null {
+  return line.match(SETS_REPS_WORDS_RE) ?? line.match(SETS_REPS_RE);
+}
+
+/**
+ * A row pasted out of a spreadsheet: name, sets, reps, and optionally an
+ * intensity, separated by tabs or a run of spaces used as columns.
+ */
+const COLUMN_RE = /^(.+?)(?:\t+|\s{2,})(\d+)(?:\t+|\s{2,})(\d+(?:\s*[-–]\s*\d+)?)(?:(?:\t+|\s{2,})(\d+)\s*%)?\s*$/;
 const PCT_RE = /@\s*(\d+(?:\.\d+)?)\s*%/;
 const RPE_RE = /\brpe\s*(\d+(?:\.\d+)?)/i;
 const REST_RE = /\brest\s*(\d+)\s*(s|sec|m|min)?\b/i;
@@ -100,12 +124,12 @@ export function parseProgram(text: string, resolve: ExerciseResolver): ParsedPro
      * heading" is both the safer guess and the more predictable one, and the
      * preview shows the user exactly how their paste was read.
      */
-    const hasSetsReps = SETS_REPS_RE.test(line);
+    const hasSetsReps = matchSetsReps(line) != null || COLUMN_RE.test(line);
     const isDayHeader = DAY_HEADER_RE.test(line) || !hasSetsReps;
 
     if (isDayHeader && !hasSetsReps) {
       const m = line.replace(WEEK_RE, '').trim().match(DAY_RE);
-      const label = (m?.[2] || m?.[1] || line).trim();
+      const label = cleanHeading(m?.[2] || m?.[1] || line);
       current = { name: label || `Day ${days.length + 1}`, week: currentWeek, slots: [] };
       days.push(current);
       return;
@@ -139,24 +163,57 @@ export function parseProgram(text: string, resolve: ExerciseResolver): ParsedPro
 }
 
 /**
+ * Tidies a day heading: forum posts wrap them in markdown emphasis, and
+ * spreadsheets prefix them with bullets or numbers.
+ */
+export function cleanHeading(raw: string): string {
+  return raw
+    .replace(/\*\*/g, '')
+    .replace(/^[\s\d.)\-–—•*#]+/, '')
+    .replace(/[\s:\-–—*]+$/, '')
+    .trim();
+}
+
+/**
  * Strips set/rep counts, annotations, bullets and trailing notes, leaving what
  * should be the exercise name. Shared so the day-header test and the slot
  * parser always agree on what a line is naming.
  */
 export function cleanExerciseName(line: string): string {
   return line
+    .replace(SETS_REPS_WORDS_RE, ' ')
     .replace(SETS_REPS_RE, ' ')
     .replace(PCT_RE, ' ')
     .replace(RPE_RE, ' ')
     .replace(REST_RE, ' ')
     .replace(/\(([^)]+)\)\s*$/, ' ')
     .replace(/^[\s\d.)\-–—•*]+/, '')
+    // Markdown emphasis and the dot leaders books use to reach a column.
+    .replace(/\*\*/g, '')
+    .replace(/\.{3,}/g, ' ')
     .replace(/[\s,;:\-–—]+$/, '')
     .trim();
 }
 
 function parseSlot(line: string, resolve: ExerciseResolver): ParsedSlot | null {
-  const setsReps = line.match(SETS_REPS_RE);
+  // A spreadsheet row carries its numbers positionally rather than in prose.
+  const columns = line.match(COLUMN_RE);
+  if (columns && !matchSetsReps(line)) {
+    const name = columns[1].trim();
+    return {
+      raw: line,
+      exerciseQuery: name,
+      exerciseId: resolve(name),
+      sets: Number(columns[2]),
+      reps: normaliseReps(columns[3]),
+      pct: columns[4] ? Number(columns[4]) / 100 : null,
+      rpe: null,
+      restSeconds: null,
+      note: null,
+    };
+  }
+
+  const setsReps = matchSetsReps(line);
 
   const pctMatch = line.match(PCT_RE);
   const rpeMatch = line.match(RPE_RE);
@@ -164,6 +221,7 @@ function parseSlot(line: string, resolve: ExerciseResolver): ParsedSlot | null {
 
   // A trailing parenthetical is a coaching note, not part of the name.
   const withoutAnnotations = line
+    .replace(SETS_REPS_WORDS_RE, ' ')
     .replace(SETS_REPS_RE, ' ')
     .replace(PCT_RE, ' ')
     .replace(RPE_RE, ' ')

@@ -159,3 +159,59 @@ Overhead Press 1x5 @65%`, resolve);
   assert.equal(p.days[0].slots[3].restSeconds, 150);
   assert.equal(p.days[0].week, 1);
 });
+
+/* ------------------------------------------- the shapes people actually paste */
+
+test('reads the spelled-out notation books and blogs use', () => {
+  const p = parseProgram(`Upper Body
+Bench Press – 4 sets of 6-8 reps
+Barbell Row – 3 sets x 5 reps
+Overhead Press – 3 sets of 8`, resolve);
+
+  assert.equal(p.days.length, 1);
+  assert.deepEqual(p.days[0].slots.map((s) => [s.sets, s.reps]),
+    [[4, '6-8'], [3, '5'], [3, '8']]);
+  assert.equal(p.days[0].slots[0].exerciseQuery, 'Bench Press', 'the dash is not part of the name');
+});
+
+test('reads a row pasted out of a spreadsheet', () => {
+  const p = parseProgram(`Day 1
+Squat\t3\t5\t75%
+Bench Press\t3\t5
+Barbell Row\t3\t8`, resolve);
+
+  assert.equal(p.days[0].slots.length, 3);
+  assert.deepEqual(p.days[0].slots[0], {
+    raw: 'Squat\t3\t5\t75%',
+    exerciseQuery: 'Squat',
+    exerciseId: 'id:squat',
+    sets: 3, reps: '5', pct: 0.75, rpe: null, restSeconds: null, note: null,
+  });
+});
+
+test('strips the dot leaders a PDF uses to reach a column', () => {
+  const p = parseProgram(`WORKOUT A
+Barbell Squat ............ 3 sets x 5 reps`, resolve);
+  assert.equal(p.days[0].slots[0].exerciseQuery, 'Barbell Squat');
+  assert.equal(p.days[0].slots[0].sets, 3);
+});
+
+test('strips markdown emphasis from a forum post', () => {
+  const p = parseProgram(`**Day A**
+- Squat 3x5
+- Bench Press 3x5`, resolve);
+  assert.equal(p.days.length, 1);
+  assert.equal(p.days[0].name, 'Day A');
+  assert.equal(p.days[0].slots.length, 2);
+});
+
+test('the compact notation still wins where both could match', () => {
+  // "5x5" is unambiguous; the spelled-out pattern must not mangle it.
+  const p = parseProgram(`Day 1
+Squat 5x5 @75% rest 180`, resolve);
+  const s = p.days[0].slots[0];
+  assert.equal(s.sets, 5);
+  assert.equal(s.reps, '5');
+  assert.equal(s.pct, 0.75);
+  assert.equal(s.restSeconds, 180);
+});

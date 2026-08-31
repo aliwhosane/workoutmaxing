@@ -15,6 +15,18 @@ import { SYNCED_TABLES, PRIMARY_KEY, type SyncedTable } from '../db/schema';
 const CURSOR_KEY = 'sync_cursor';
 const BATCH = 500;
 
+/**
+ * How long to wait on the server before giving up.
+ *
+ * Without this a request to a host that silently drops packets — a captive
+ * portal, a VPN half-connected, a server that has moved — hangs for as long as
+ * the OS is willing to wait, which can be minutes. That would be survivable if
+ * it only delayed one sync, but `syncNow` holds an in-flight guard for the
+ * duration, so a single hung request blocks every later sync for the life of
+ * the app. Failing in fifteen seconds and retrying is strictly better.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 export interface SyncResult {
   pushed: number;
   pulled: number;
@@ -50,6 +62,7 @@ export async function sync(baseUrl: string, token: string): Promise<SyncResult> 
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
     body: JSON.stringify({ since, changes }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {

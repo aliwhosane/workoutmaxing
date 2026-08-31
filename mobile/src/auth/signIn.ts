@@ -43,18 +43,37 @@ export async function isAppleAvailable(): Promise<boolean> {
 export const isGoogleAvailable = (): boolean =>
   !!loadGoogle() && !!googleWebClientId();
 
-/** Trades a provider ID token for our session token and stores it. */
+/**
+ * Trades a provider ID token for our session token and stores it.
+ *
+ * Bounded, because this one is in front of a person: the user has just tapped a
+ * button and is watching. An unreachable server has to become a message they
+ * can act on, not a spinner that never resolves.
+ */
+const SIGN_IN_TIMEOUT_MS = 15_000;
+
 async function exchange(provider: 'apple' | 'google', idToken: string): Promise<void> {
-  const response = await fetch(`${apiBaseUrl()}/auth/session`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      provider,
-      idToken,
-      deviceId: Constants.sessionId,
-      platform: Platform.OS,
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl()}/auth/session`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        idToken,
+        deviceId: Constants.sessionId,
+        platform: Platform.OS,
+      }),
+      signal: AbortSignal.timeout(SIGN_IN_TIMEOUT_MS),
+    });
+  } catch {
+    // Google and Apple already verified who they are; only our own server is
+    // unreachable, and saying so is more useful than a network stack message.
+    throw new Error(
+      "Couldn't reach the sync server. Your workouts are safe on this phone — " +
+      'try signing in again later.',
+    );
+  }
 
   if (!response.ok) {
     throw new Error(`sign-in rejected by server (${response.status})`);

@@ -18,6 +18,20 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    /**
+     * Never hold the splash on anything that can be slow.
+     *
+     * Nothing in here touches the network — sync is deliberately not awaited —
+     * but a migration on a large database, or a filesystem under pressure, can
+     * still take longer than a person is willing to stare at a logo. After a
+     * few seconds the app shows itself regardless; screens open the database
+     * on demand, so an early paint costs at most a moment of empty state.
+     */
+    const watchdog = setTimeout(() => {
+      setReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }, 4000);
+
     (async () => {
       try {
         await openDatabase();
@@ -33,10 +47,13 @@ export default function RootLayout() {
         // A failed migration must not trap the user on a splash screen forever.
         console.error('[boot] initialisation failed', err);
       } finally {
+        clearTimeout(watchdog);
         setReady(true);
         await SplashScreen.hideAsync().catch(() => {});
       }
     })();
+
+    return () => clearTimeout(watchdog);
   }, []);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: palette.void }} />;

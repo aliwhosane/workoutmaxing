@@ -88,6 +88,10 @@ You do not need to do any of this; it is recorded so you know it is handled.
 - **Account deletion**, as Apple requires. `DELETE /account` removes synced rows,
   device records and the account itself, without a table scan; verified against
   the live table across multiple write batches, and idempotent on repeat.
+- **R8 minification enabled for release builds**, so what you test locally is
+  what the store ships. An APK with minification off can pass every local check
+  and then fail in production, because R8 strips code that is only reached
+  reflectively.
 - App icon, adaptive icon, monochrome icon, splash and favicon — all generated
   from `mobile/scripts/generate-logo.py`, so they can be regenerated at any size.
 - `version` 1.0.0, iOS `buildNumber` 1, Android `versionCode` 1.
@@ -171,7 +175,14 @@ Back the file and its password up somewhere you will still have in five years.
 If you let EAS manage credentials instead, it holds the key for you — either is
 fine, but know which one you chose.
 
-### 4.2 Build the bundle
+### 4.2 Keep the R8 mapping file
+
+Release builds are minified, so a crash report from the store is unreadable
+without `android/app/build/outputs/mapping/release/mapping.txt`. Play Console
+accepts it as a deobfuscation file — upload it with every release, and keep the
+one that matches each version.
+
+### 4.3 Build the bundle
 
 Play requires an `.aab`, which the production profile already produces.
 
@@ -180,7 +191,7 @@ cd mobile
 npx eas build --platform android --profile production
 ```
 
-### 4.3 Declare Health Connect access
+### 4.4 Declare Health Connect access
 
 **This one is easy to miss and will block the release.** Google treats Health
 Connect as sensitive: you must complete the **Health apps declaration** form in
@@ -194,7 +205,7 @@ Play Console and explain each permission. Yours are:
 
 Review takes days, sometimes longer. Submit it early.
 
-### 4.4 The rest of the console
+### 4.5 The rest of the console
 
 - **Data safety form** — mirrors the privacy policy. Declare account identifiers
   and health data; state that data is encrypted in transit and can be deleted.
@@ -203,7 +214,7 @@ Review takes days, sometimes longer. Submit it early.
 - **Screenshots** plus a **1024×500 feature graphic** (the WM mark on the black
   canvas works).
 
-### 4.5 Roll out gradually
+### 4.6 Roll out gradually
 
 Internal testing → closed testing → production. Do not skip straight to
 production on a first release; the internal track installs in minutes and is the

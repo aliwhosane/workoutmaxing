@@ -1,5 +1,8 @@
 {
-  "cli": { "version": ">= 5.0.0", "appVersionSource": "remote" },
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "remote"
+  },
   "build": {
     "development": {
       "developmentClient": true,
@@ -7,13 +10,21 @@
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
-      "env": { "API_BASE_URL": "https://REPLACE-ME.example.com" }
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "API_BASE_URL": "https://u9yegyk6n2.execute-api.us-east-1.amazonaws.com"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" },
-      "env": { "API_BASE_URL": "https://REPLACE-ME.example.com" }
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "API_BASE_URL": "https://u9yegyk6n2.execute-api.us-east-1.amazonaws.com"
+      }
     }
   },
   "submit": {

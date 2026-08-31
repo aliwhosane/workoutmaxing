@@ -15,6 +15,7 @@ FUNCTION="${FUNCTION:-workout-maxing-sync}"
 REGION="${AWS_REGION:-us-east-1}"
 TABLE="${DYNAMODB_TABLE:-workout_maxxing}"
 ROLE_NAME="${FUNCTION}-role"
+API_NAME="${API_NAME:-workout-maxing}"
 
 cd "$(dirname "$0")/.."
 
@@ -89,19 +90,33 @@ else
     --zip-file fileb://function.zip --environment "$ENV_VARS" >/dev/null
   aws lambda wait function-active --function-name "$FUNCTION" --region "$REGION"
 
-  echo "==> creating public HTTPS endpoint"
-  aws lambda create-function-url-config --function-name "$FUNCTION" --region "$REGION" \
-    --auth-type NONE >/dev/null
-  # Public because the app authenticates with its own bearer token; IAM auth
-  # would mean signing requests from the phone with AWS credentials.
-  aws lambda add-permission --function-name "$FUNCTION" --region "$REGION" \
-    --statement-id public-url --action lambda:InvokeFunctionUrl \
-    --principal '*' --function-url-auth-type NONE >/dev/null
 fi
 
-URL=$(aws lambda get-function-url-config --function-name "$FUNCTION" --region "$REGION" --query FunctionUrl --output text)
+# An HTTP API rather than a Lambda Function URL. Function URLs are free where
+# they work, but newer AWS accounts block public access to them at the account
+# level, and the block is not visible from the CLI — the URL simply answers
+# Forbidden with a resource policy that is provably correct. An HTTP API costs
+# about $1 per million requests after the first year, which is cents here, and
+# it works everywhere.
+API_ID=$(aws apigatewayv2 get-apis --region "$REGION" \
+  --query "Items[?Name=='${API_NAME}'].ApiId | [0]" --output text 2>/dev/null || true)
+
+if [ -z "${API_ID:-}" ] || [ "$API_ID" = "None" ]; then
+  echo "==> creating HTTPS endpoint"
+  FUNCTION_ARN=$(aws lambda get-function --function-name "$FUNCTION" --region "$REGION" \
+    --query 'Configuration.FunctionArn' --output text)
+  API_ID=$(aws apigatewayv2 create-api --name "$API_NAME" --protocol-type HTTP \
+    --target "$FUNCTION_ARN" --region "$REGION" --query ApiId --output text)
+  aws lambda add-permission --function-name "$FUNCTION" --region "$REGION" \
+    --statement-id apigw-invoke --action lambda:InvokeFunction \
+    --principal apigateway.amazonaws.com \
+    --source-arn "arn:aws:execute-api:${REGION}:${ACCOUNT}:${API_ID}/*" >/dev/null
+  sleep 8
+fi
+
+URL=$(aws apigatewayv2 get-api --api-id "$API_ID" --region "$REGION" --query ApiEndpoint --output text)
 rm -rf .deploy function.zip
 
 echo
 echo "deployed: ${URL}"
-echo "put that in API_BASE_URL (without the trailing slash) in mobile/eas.json"
+echo "already set as API_BASE_URL in mobile/eas.json"

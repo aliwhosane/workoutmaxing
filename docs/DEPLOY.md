@@ -1,7 +1,14 @@
 # Deploying the sync service
 
-**Recommendation: Lambda behind a Function URL.** At this app's scale it costs
-nothing, and there is no server to patch.
+**Lambda behind an HTTP API.** At this app's scale it costs a couple of cents a
+month, and there is no server to patch.
+
+> Lambda **Function URLs** are the cheaper option — genuinely free — and the
+> script tried them first. They do not work in this account: newer AWS accounts
+> block public access to function URLs at the account level, and the block is
+> invisible from the CLI. The URL simply answers `Forbidden` while its resource
+> policy is provably correct. If your account allows them, a Function URL saves
+> the API Gateway line item; otherwise this is the path.
 
 ---
 
@@ -14,8 +21,8 @@ sitting idle is paying for the ~99.9% of the time nobody is lifting.
 
 | Option | Realistic monthly floor | Why not |
 |---|---|---|
-| **Lambda + Function URL** | **$0** | — |
-| Lambda + API Gateway | +$1.00 / million requests | Function URLs already give you HTTPS; the gateway buys nothing here |
+| Lambda + Function URL | $0 | Free, but blocked at the account level here |
+| **Lambda + HTTP API** | **~$0.02** | What this deploys |
 | App Runner | ~$5–25 | Does not scale to zero |
 | ECS Fargate | ~$10–15 | An always-on task for a service that is idle nearly always |
 | EC2 `t4g.nano` + ALB | ~$20 | The load balancer costs five times the compute |
@@ -38,17 +45,30 @@ At 512 MB, a sync takes roughly 200 ms → about 0.1 GB-seconds. So:
 DynamoDB on demand adds $1.25 per million writes and $0.25 per million reads —
 cents at these volumes. Outbound data has a 100 GB monthly free allowance.
 
-**You will pay nothing until this is a real business.** Past the free tier it is
-roughly $0.20 per million requests plus compute.
+HTTP API adds $1.00 per million requests, free for the first year. At 20,000
+requests a month that is **two cents**.
+
+**You will pay approximately nothing until this is a real business.**
+
+### Measured, not estimated
+
+Against the deployed service:
+
+| | |
+|---|---|
+| Cold start (first request) | **585 ms** |
+| Warm request | **168 ms** |
+
+Both well inside what a background sync needs, and fine for the one place a
+person waits — signing in.
 
 ### The trade-offs, honestly
 
-- **Cold starts.** A Node function with the AWS SDK takes roughly 300–600 ms to
-  start. Sync happens in the background, so nobody sees it; sign-in is the one
-  place a person is waiting, and half a second there is fine.
-- **The URL is ugly** — `https://<id>.lambda-url.us-east-1.on.aws`. Fine for
-  launch. A custom domain means putting CloudFront in front, which is also
-  near-free at low volume.
+- **Cold starts** measured at 585 ms. Sync happens in the background, so nobody
+  sees it; half a second on sign-in is fine.
+- **The URL is ugly** — `https://<id>.execute-api.us-east-1.amazonaws.com`. Fine
+  for launch; a custom domain is a certificate in ACM plus a custom domain name
+  on the API when you want one.
 - **6 MB payload cap.** The server's `bodyLimit` is set to match, so an
   oversized request fails with our error rather than the platform's. The client
   batches 500 rows per table, far below it.

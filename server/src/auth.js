@@ -59,7 +59,15 @@ export async function upsertUser({ subject, email }) {
   return { userId: subject, subject, email: email ?? null };
 }
 
-/** Records a device, so a future "sign out everywhere" has something to revoke. */
+/**
+ * Records a device, so a future "sign out everywhere" has something to revoke.
+ *
+ * The device id is also added to a set on the account. Device rows carry no
+ * `updatedAt` and so are deliberately absent from the sync index, which means
+ * there is otherwise no way to enumerate them without scanning the whole table.
+ * Account deletion has to find every one of them, and a scan is the wrong price
+ * to pay for something that must be exact.
+ */
 export async function recordDevice(userId, deviceId, platform) {
   const now = Date.now();
   await db().send(new UpdateCommand({
@@ -68,6 +76,13 @@ export async function recordDevice(userId, deviceId, platform) {
     UpdateExpression:
       'SET platform = :p, lastSeenAt = :n, createdAt = if_not_exists(createdAt, :n), userId = :u',
     ExpressionAttributeValues: { ':p': platform ?? null, ':n': now, ':u': userId },
+  }));
+
+  await db().send(new UpdateCommand({
+    TableName: table(),
+    Key: { [PK]: `user#${userId}` },
+    UpdateExpression: 'ADD deviceIds :d',
+    ExpressionAttributeValues: { ':d': new Set([deviceId]) },
   }));
 }
 

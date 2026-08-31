@@ -9,6 +9,7 @@ import { palette, space, radius, touch } from '../src/design/tokens';
 import { useSettings, updateSettings } from '../src/settings/store';
 import type { DistanceUnit, WeightUnit } from '../src/settings/units';
 import { useAuth, signOut } from '../src/auth/store';
+import { deleteAccount } from '../src/auth/deleteAccount';
 import {
   isAppleAvailable, isGoogleAvailable, signInWithApple, signInWithGoogle, isCancellation,
 } from '../src/auth/signIn';
@@ -46,6 +47,46 @@ export default function SettingsScreen() {
     } finally {
       setBusy(false);
     }
+  }, []);
+
+  /**
+   * Two confirmations, because this is irreversible and the first tap is often
+   * a misread. The copy states plainly what survives — local history — so the
+   * decision is about syncing rather than about losing a training log.
+   */
+  const confirmDelete = useCallback(() => {
+    Alert.alert(
+      'Delete your account?',
+      'This erases everything stored on our server for you. Your workout history stays on this phone — delete the app if you want that gone too.\n\nThis cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => Alert.alert(
+            'Really delete?',
+            'Your account and everything synced to it will be permanently removed.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete account',
+                style: 'destructive',
+                onPress: async () => {
+                  setBusy(true);
+                  try {
+                    await deleteAccount();
+                  } catch (err) {
+                    Alert.alert('Not deleted', (err as Error).message);
+                  } finally {
+                    setBusy(false);
+                  }
+                },
+              },
+            ],
+          ),
+        },
+      ],
+    );
   }, []);
 
   const toggleHealth = useCallback(async (next: boolean) => {
@@ -130,6 +171,8 @@ export default function SettingsScreen() {
                   )
                 }
               />
+              <Rule inset={space.screen} />
+              <Action title="Delete account" tone="danger" disabled={busy} onPress={confirmDelete} />
             </>
           ) : (
             <>
@@ -207,12 +250,14 @@ function Row({ title, detail }: { title: string; detail?: string }) {
 
 function Action({
   title, onPress, tone = 'normal', disabled,
-}: { title: string; onPress: () => void; tone?: 'normal' | 'quiet'; disabled?: boolean }) {
+}: { title: string; onPress: () => void; tone?: 'normal' | 'quiet' | 'danger'; disabled?: boolean }) {
+  const colour = disabled ? palette.ink25
+    : tone === 'quiet' ? palette.ink45
+    : tone === 'danger' ? palette.strain
+    : palette.live;
   return (
     <Touch style={styles.row} onPress={onPress} disabled={disabled} haptic="medium" scaleTo={0.99}>
-      <Text variant="body" color={disabled ? palette.ink25 : tone === 'quiet' ? palette.ink45 : palette.live}>
-        {title}
-      </Text>
+      <Text variant="body" color={colour}>{title}</Text>
     </Touch>
   );
 }

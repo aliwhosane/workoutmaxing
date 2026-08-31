@@ -1,4 +1,4 @@
-import { QueryCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, BatchWriteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { db, table, SYNCED, PRIMARY_KEY, PK, GSI, rowKey } from './db.js';
 
 /**
@@ -125,4 +125,69 @@ export async function pull(userId, since) {
     changes,
     hasMore: truncated,
   };
+}
+
+/* ------------------------------------------------------------- deletion */
+
+/**
+ * Erases everything the server holds for one account.
+ *
+ * Apple requires any app offering sign-in to offer deletion from inside the
+ * app, and it is the right behaviour regardless: an account someone can create
+ * in two taps should not take an email and a week to remove.
+ *
+ * Three sets of items have to go, found three different ways:
+ *
+ *   1. synced rows — a Query on the sync index, which is what it is for
+ *   2. device records — enumerated from the set kept on the account, because
+ *      they carry no `updatedAt` and so are absent from that index
+ *   3. the account row itself, whose key we already know
+ *
+ * Deliberately not a Scan. Deletion is rare, but "rare" is not a reason to make
+ * it cost proportional to every other user's data.
+ */
+export async function deleteAccount(userId) {
+  const deleted = { rows: 0, devices: 0, account: 0 };
+  const keys = [];
+
+  // 1. everything the user has synced
+  let cursorKey;
+  do {
+    const page = await db().send(new QueryCommand({
+      TableName: table(),
+      IndexName: GSI,
+      KeyConditionExpression: 'userId = :u',
+      ExpressionAttributeValues: { ':u': userId },
+      ProjectionExpression: PK,
+      ExclusiveStartKey: cursorKey,
+    }));
+    for (const item of page.Items ?? []) keys.push(item[PK]);
+    cursorKey = page.LastEvaluatedKey;
+  } while (cursorKey);
+  deleted.rows = keys.length;
+
+  // 2. devices, from the set kept on the account
+  const account = await db().send(new GetCommand({
+    TableName: table(),
+    Key: { [PK]: `user#${userId}` },
+  }));
+  for (const deviceId of account.Item?.deviceIds ?? []) {
+    keys.push(`device#${userId}#${deviceId}`);
+    deleted.devices++;
+  }
+
+  // 3. the account row last, so a failure part-way through leaves something
+  //    still pointing at the leftovers rather than orphaning them.
+  if (account.Item) {
+    keys.push(`user#${userId}`);
+    deleted.account = 1;
+  }
+
+  for (let i = 0; i < keys.length; i += BATCH_LIMIT) {
+    await writeBatch(
+      keys.slice(i, i + BATCH_LIMIT).map((k) => ({ DeleteRequest: { Key: { [PK]: k } } })),
+    );
+  }
+
+  return deleted;
 }

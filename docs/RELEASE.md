@@ -84,6 +84,9 @@ Start both now — the waiting is the slow part.
 
 You do not need to do any of this; it is recorded so you know it is handled.
 
+- **Account deletion**, as Apple requires. `DELETE /account` removes synced rows,
+  device records and the account itself, without a table scan; verified against
+  the live table across multiple write batches, and idempotent on repeat.
 - App icon, adaptive icon, monochrome icon, splash and favicon — all generated
   from `mobile/scripts/generate-logo.py`, so they can be regenerated at any size.
 - `version` 1.0.0, iOS `buildNumber` 1, Android `versionCode` 1.
@@ -145,7 +148,10 @@ first time; say yes when it offers.
 - **Sign-in.** Reviewers will check Apple sign-in works. It must succeed against
   your production server, so deploy before submitting.
 - **Account deletion.** Apple requires apps with account creation to offer
-  in-app deletion. **The app does not have this yet** — see Part 6.
+  in-app deletion. Settings → Delete account does this: it erases everything the
+  server holds, behind two confirmations. Local history is kept deliberately —
+  deleting the account is a decision about syncing, not about throwing away a
+  training log — and the copy says so.
 
 ---
 
@@ -241,10 +247,6 @@ progressive overload, 5x5, powerlifting, workout planner
 
 Things a reviewer or a user will notice.
 
-- **Account deletion is missing.** Apple requires it for any app with sign-in.
-  Signing out keeps the server copy. This needs a "Delete my account" action in
-  Settings that clears the user's rows from DynamoDB. **Do this before submitting
-  to Apple.**
 - **The sync engine has never been exercised between two devices.** It is
   verified against the server, but two phones converging has not been tried.
 - **No crash reporting.** Shipping blind. Sentry or similar is worth adding, and

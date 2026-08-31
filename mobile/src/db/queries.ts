@@ -351,20 +351,67 @@ export interface HistoryEntry extends WorkoutRow {
   set_count: number; volume_kg: number;
 }
 
+/**
+ * Volume is load moved: weight times reps, summed.
+ *
+ * Warm-up sets are excluded. They are real work but not the work the number is
+ * meant to describe — counting them lets someone inflate their volume by
+ * warming up more thoroughly, which is exactly backwards. Drop sets and sets
+ * taken to failure do count, because those are working sets.
+ *
+ * Sets with no weight — bodyweight movements, planks — contribute nothing,
+ * since `NULL * reps` is NULL and SUM skips it. That is deliberate: without
+ * knowing what the lifter weighs, any number we invented for a pull-up would
+ * be a guess dressed up as data.
+ */
+const VOLUME_SQL = `SUM(CASE WHEN s.kind = 'warmup' THEN 0 ELSE s.weight_kg * s.reps END)`;
+
+const COMPLETED_SET_JOIN = `
+     LEFT JOIN logged_set s
+       ON s.workout_id = w.id AND s.completed_at IS NOT NULL AND s.deleted_at IS NULL`;
+
+const FINISHED_WORKOUT = `w.finished_at IS NOT NULL AND w.deleted_at IS NULL`;
+
+/** A page of finished sessions, newest first. */
 export const listHistory = async (limit = 60) =>
 (await getDb()).getAllAsync<HistoryEntry>(
     `SELECT w.*,
             COUNT(s.id) AS set_count,
-            COALESCE(SUM(s.weight_kg * s.reps), 0) AS volume_kg
-     FROM workout w
-     LEFT JOIN logged_set s
-       ON s.workout_id = w.id AND s.completed_at IS NOT NULL AND s.deleted_at IS NULL
-     WHERE w.finished_at IS NOT NULL AND w.deleted_at IS NULL
+            COALESCE(${VOLUME_SQL}, 0) AS volume_kg
+     FROM workout w${COMPLETED_SET_JOIN}
+     WHERE ${FINISHED_WORKOUT}
      GROUP BY w.id
      ORDER BY w.started_at DESC
      LIMIT ?`,
     limit,
   );
+
+export interface HistoryTotals {
+  sessions: number;
+  volume_kg: number;
+  sessions_this_week: number;
+}
+
+/**
+ * Lifetime totals, counted in the database rather than summed from a page.
+ *
+ * The screen used to add up whatever `listHistory` had returned, which is the
+ * most recent sixty sessions — so both the session count and the total volume
+ * silently stopped growing after about fifteen weeks of training, while still
+ * being labelled as though they covered everything.
+ */
+export async function historyTotals(weekStart: number): Promise<HistoryTotals> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<HistoryTotals>(
+    `SELECT COUNT(DISTINCT w.id) AS sessions,
+            COALESCE(${VOLUME_SQL}, 0) AS volume_kg,
+            COUNT(DISTINCT CASE WHEN w.started_at >= ? THEN w.id END) AS sessions_this_week
+     FROM workout w${COMPLETED_SET_JOIN}
+     WHERE ${FINISHED_WORKOUT}`,
+    weekStart,
+  );
+  return row ?? { sessions: 0, volume_kg: 0, sessions_this_week: 0 };
+}
 
 export const trackingFor = (exerciseId: string): Tracking =>
   getExercise(exerciseId)?.tracking ?? 'weight_reps';

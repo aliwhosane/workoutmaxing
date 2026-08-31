@@ -255,6 +255,30 @@ differently in two plans, and dropping one plan must not erase the other.
 State advances in exactly one place: `advanceProgression`, after a workout is
 marked finished. Opening a screen never changes a lifter's progression.
 
+## What the history numbers mean
+
+**Volume is load moved**: weight × reps, summed over completed sets.
+
+- **Warm-ups are excluded.** They are real work but not what the number
+  describes, and counting them would let someone raise their volume by warming
+  up more thoroughly — exactly backwards. Drop sets and sets to failure count,
+  because those are working sets.
+- **Sets with no weight contribute nothing.** `NULL * reps` is NULL and SUM
+  skips it, so pull-ups and planks add zero. Deliberate: without knowing what
+  the lifter weighs, any figure for a pull-up would be a guess presented as data.
+- **Set count includes warm-ups**, because you did perform them. Volume and set
+  count measure different things on purpose.
+
+Totals are computed by their own query, not summed from the list. The list is a
+page of the sixty most recent sessions; adding it up meant the lifetime session
+count and volume silently stopped growing after roughly fifteen weeks of
+training while still being labelled as totals.
+
+"This week" is a calendar week beginning Monday in the device's timezone, not a
+rolling 168 hours. The rolling version reported most of last week's sessions as
+this week's on a Monday morning — precisely when someone checks to see whether
+they are behind.
+
 ## Units
 
 Weight (kg/lb) and distance (km/mi) are user-selectable, defaulting from device

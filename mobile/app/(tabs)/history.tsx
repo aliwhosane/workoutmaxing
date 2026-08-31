@@ -4,7 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Text, Spacer, Rule } from '../../src/design/primitives';
 import { palette, space } from '../../src/design/tokens';
-import { listHistory, type HistoryEntry } from '../../src/db/queries';
+import { listHistory, historyTotals, type HistoryEntry, type HistoryTotals } from '../../src/db/queries';
+import { startOfWeek } from '../../src/settings/week';
 import { useSettings } from '../../src/settings/store';
 import { formatVolume } from '../../src/settings/units';
 
@@ -12,11 +13,19 @@ export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
   const { weightUnit } = useSettings();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  /**
+   * Totals come from their own query rather than from `entries`. The list is a
+   * page — the sixty most recent sessions — so summing it would quietly stop
+   * counting after a few months of training.
+   */
+  const [totals, setTotals] = useState<HistoryTotals>({
+    sessions: 0, volume_kg: 0, sessions_this_week: 0,
+  });
 
-  useFocusEffect(useCallback(() => { listHistory().then(setEntries); }, []));
-
-  const totalVolume = entries.reduce((n, e) => n + e.volume_kg, 0);
-  const thisWeek = entries.filter((e) => e.started_at > Date.now() - 7 * 864e5).length;
+  useFocusEffect(useCallback(() => {
+    listHistory().then(setEntries);
+    historyTotals(startOfWeek()).then(setTotals);
+  }, []));
 
   return (
     <ScrollView
@@ -36,9 +45,9 @@ export default function HistoryScreen() {
       ) : (
         <>
           <View style={styles.stats}>
-            <Stat value={String(thisWeek)} label="This week" />
-            <Stat value={String(entries.length)} label="Sessions" />
-            <Stat value={formatVolume(totalVolume, weightUnit)} label={`Volume ${weightUnit}`} />
+            <Stat value={String(totals.sessions_this_week)} label="This week" />
+            <Stat value={String(totals.sessions)} label="Sessions" />
+            <Stat value={formatVolume(totals.volume_kg, weightUnit)} label={`Volume ${weightUnit}`} />
           </View>
 
           <Spacer h={space.xl} />

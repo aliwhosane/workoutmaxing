@@ -20,6 +20,8 @@
     "src/settings/units.ts",
     "src/data/importProgram.ts",
     "src/data/catalog.ts",
-    "src/data/__tests__/**/*"
+    "src/data/__tests__/**/*",
+    "src/settings/week.ts",
+    "src/settings/__tests__/**/*"
   ]
 }

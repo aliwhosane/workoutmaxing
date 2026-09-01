@@ -28,6 +28,10 @@ export const palette = {
   // Semantic, used sparingly in history/progress only.
   gain: '#4ADE80',
   strain: '#FF6B5A',
+
+  // The void, dimmed — what sits behind a sheet so the screen below reads as
+  // pushed away rather than merely covered.
+  scrim: 'rgba(10,10,11,0.72)',
 } as const;
 
 /**

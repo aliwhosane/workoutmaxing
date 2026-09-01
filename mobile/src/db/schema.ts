@@ -14,7 +14,7 @@
  * grows. Only a user's own edits (custom exercises) hit the database.
  */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const MIGRATIONS: string[][] = [
   // ---- v1 ----------------------------------------------------------------
@@ -239,13 +239,34 @@ export const MIGRATIONS: string[][] = [
         SET deleted_at = NULL, dirty = 1
       WHERE finished_at IS NOT NULL AND deleted_at IS NOT NULL;`,
   ],
+
+  // ---- v5: rest length chosen per prescribed slot ---------------------------
+  //
+  // Rest cannot live on the exercise alone. 5/3/1 Boring But Big presses the
+  // same movement twice in one session — a heavy top set resting three and a
+  // half minutes, then volume work resting ninety seconds — so a preference
+  // keyed by exercise makes setting one of them silently change the other.
+  //
+  // It cannot live on `program_slot.rest_seconds` either: re-seeding deletes
+  // and rewrites every builtin row, so the lifter's choice would disappear the
+  // next time the app shipped a new version of the program. Hence its own
+  // table, keyed by the slot, which the seeder never touches.
+  [
+    `CREATE TABLE IF NOT EXISTS slot_rest (
+      slot_id      TEXT PRIMARY KEY,
+      rest_seconds INTEGER NOT NULL,
+      updated_at   INTEGER NOT NULL,
+      deleted_at   INTEGER,
+      dirty        INTEGER NOT NULL DEFAULT 1
+    );`,
+  ],
 ];
 
 /** Tables the sync engine pushes and pulls, in dependency order. */
 export const SYNCED_TABLES = [
   'program', 'program_day', 'program_slot', 'enrollment',
   'workout', 'logged_set', 'custom_exercise', 'exercise_pref', 'body_metric',
-  'progression_state',
+  'progression_state', 'slot_rest',
 ] as const;
 
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
@@ -267,4 +288,5 @@ export const PRIMARY_KEY: Record<SyncedTable, string> = {
   exercise_pref: 'exercise_id',
   body_metric: 'id',
   progression_state: 'id',
+  slot_rest: 'slot_id',
 };

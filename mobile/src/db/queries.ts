@@ -362,14 +362,87 @@ export const epley = (weight: number, reps: number) =>
 
 /* ------------------------------------------------------------ pre-filling */
 
-export interface Pref { exercise_id: string; last_weight: number | null; last_reps: number | null; est_1rm: number | null }
+export interface Pref {
+  exercise_id: string; last_weight: number | null; last_reps: number | null;
+  est_1rm: number | null; rest_seconds: number | null;
+}
 
 export async function getPrefs(exerciseIds: string[]): Promise<Pref[]> {
   if (exerciseIds.length === 0) return [];
   return (await getDb()).getAllAsync<Pref>(
-    `SELECT exercise_id, last_weight, last_reps, est_1rm FROM exercise_pref
+    `SELECT exercise_id, last_weight, last_reps, est_1rm, rest_seconds FROM exercise_pref
      WHERE exercise_id IN (${exerciseIds.map(() => '?').join(',')})`,
     ...exerciseIds,
+  );
+}
+
+/* ------------------------------------------------------------------- rest */
+
+/**
+ * How long this lifter rests on each movement, when they have said so.
+ *
+ * A rest length is a property of the person and the movement, not of the
+ * session — someone who needs three minutes between heavy squats needs it in
+ * every program they ever run. So it lives on `exercise_pref` beside the rest
+ * of the per-exercise memory, and follows them to their other devices.
+ *
+ * Three states, and the difference matters:
+ *   a number   rest this long after every set of this movement
+ *   0          no automatic rest here — the lifter turned it off
+ *   absent     never asked; fall back to the program, then to settings
+ */
+export async function restPrefs(): Promise<Map<string, number>> {
+  const rows = await (await getDb()).getAllAsync<{ exercise_id: string; rest_seconds: number }>(
+    'SELECT exercise_id, rest_seconds FROM exercise_pref WHERE rest_seconds IS NOT NULL',
+  );
+  return new Map(rows.map((r) => [r.exercise_id, r.rest_seconds]));
+}
+
+/**
+ * Writes only the rest column. The upsert in `completeSet` leaves it alone and
+ * this one leaves the lifting history alone, so setting a rest on an exercise
+ * that has never been trained cannot wipe what a later set records.
+ */
+export async function setRestPref(exerciseId: string, seconds: number | null): Promise<void> {
+  const ts = now();
+  await (await getDb()).runAsync(
+    `INSERT INTO exercise_pref (exercise_id, rest_seconds, updated_at, dirty)
+     VALUES (?, ?, ?, 1)
+     ON CONFLICT(exercise_id) DO UPDATE SET
+       rest_seconds = excluded.rest_seconds,
+       updated_at   = excluded.updated_at,
+       dirty        = 1`,
+    exerciseId, seconds, ts,
+  );
+}
+
+/**
+ * The same, one level more specific: rest for a single prescribed slot.
+ *
+ * Needed because a program can prescribe the same movement twice in one
+ * session and mean something different each time — 5/3/1's Boring But Big
+ * presses heavy for one top set and then again for five sets of ten. Keyed by
+ * exercise, choosing a rest for one of those changes the other; keyed by slot,
+ * each keeps its own.
+ */
+export async function slotRestPrefs(): Promise<Map<string, number>> {
+  const rows = await (await getDb()).getAllAsync<{ slot_id: string; rest_seconds: number }>(
+    'SELECT slot_id, rest_seconds FROM slot_rest WHERE deleted_at IS NULL',
+  );
+  return new Map(rows.map((r) => [r.slot_id, r.rest_seconds]));
+}
+
+export async function setSlotRest(slotId: string, seconds: number): Promise<void> {
+  const ts = now();
+  await (await getDb()).runAsync(
+    `INSERT INTO slot_rest (slot_id, rest_seconds, updated_at, dirty)
+     VALUES (?, ?, ?, 1)
+     ON CONFLICT(slot_id) DO UPDATE SET
+       rest_seconds = excluded.rest_seconds,
+       deleted_at   = NULL,
+       updated_at   = excluded.updated_at,
+       dirty        = 1`,
+    slotId, seconds, ts,
   );
 }
 

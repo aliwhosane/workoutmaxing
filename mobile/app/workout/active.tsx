@@ -11,6 +11,7 @@ import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { Text, Touch, Button, Spacer } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { RestTimer } from '../../src/design/RestTimer';
+import { RestPicker, TimerGlyph, restLabel } from '../../src/design/RestPicker';
 import { Surface } from '../../src/design/Surface';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
 import { getExercise } from '../../src/data/catalog';
@@ -21,7 +22,8 @@ import { displayToKg, weightFieldValue, weightUnchanged } from '../../src/settin
 import {
   listSets, completeSet, uncompleteSet, finishWorkout, discardWorkout,
   materializeWorkout, addSetToExercise, listSlots, advanceEnrollment,
-  getActiveEnrollment, daysForWeek, type SetRow,
+  getActiveEnrollment, daysForWeek, restPrefs, setRestPref,
+  slotRestPrefs, setSlotRest, type SetRow,
 } from '../../src/db/queries';
 import { getDb } from '../../src/db/client';
 
@@ -42,6 +44,9 @@ export default function ActiveWorkoutScreen() {
   // is the case whenever the session was opened straight from a link.
   const leave = useGoBack();
   const { workoutId } = useLocalSearchParams<{ workoutId: string }>();
+  // The fallback rest, for a movement the lifter has never set one on and a
+  // program that never prescribed one.
+  const { defaultRestSeconds } = useSettings();
 
   const [sets, setSets] = useState<SetRow[]>([]);
   const [startedAt, setStartedAt] = useState<number>(Date.now());
@@ -49,6 +54,17 @@ export default function ActiveWorkoutScreen() {
   const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState<{ seconds: number; key: number } | null>(null);
   const [restBySlot, setRestBySlot] = useState<Map<string, number>>(new Map());
+  const [restByExercise, setRestByExercise] = useState<Map<string, number>>(new Map());
+  const [restBySlotChoice, setRestBySlotChoice] = useState<Map<string, number>>(new Map());
+
+  /**
+   * Which rest length is being chosen, if any. `manual` starts a rest right
+   * now; `exercise` sets the one that runs automatically after every set of a
+   * movement, and is remembered for good.
+   */
+  const [picker, setPicker] = useState<
+    null | { kind: 'manual' } | { kind: 'exercise'; exerciseId: string; slotId: string | null }
+  >(null);
 
   const reload = useCallback(async () => {
     if (!workoutId) return;
@@ -68,11 +84,19 @@ export default function ActiveWorkoutScreen() {
       await materializeWorkout(workoutId, w.day_id);
 
       // Rest periods are prescribed per slot; cache them so completing a set
-      // doesn't need a query to know how long to rest.
+      // doesn't need a query to know how long to rest. Slots that prescribe
+      // nothing are left out entirely, so they fall through to the setting
+      // rather than pinning every one of them to the same hardcoded number.
       if (w.day_id) {
         const slots = await listSlots(w.day_id);
-        setRestBySlot(new Map(slots.map((s) => [s.id, s.rest_seconds ?? 120])));
+        setRestBySlot(new Map(
+          slots.flatMap((s) => (s.rest_seconds == null ? [] : [[s.id, s.rest_seconds] as const])),
+        ));
       }
+
+      // The lifter's own rest lengths, which outrank whatever the program says.
+      setRestByExercise(await restPrefs());
+      setRestBySlotChoice(await slotRestPrefs());
       await reload();
     })();
   }, [workoutId, reload]);
@@ -121,6 +145,28 @@ export default function ActiveWorkoutScreen() {
 
   const done = sets.filter((s) => s.completed_at).length;
 
+  /**
+   * How long to rest after a set of this movement, most specific answer first.
+   *
+   *   1. what the lifter chose for this exact slot
+   *   2. what they chose for the movement anywhere
+   *   3. what the program prescribes here
+   *   4. the app default
+   *
+   * Slot beats exercise because a program can prescribe the same lift twice in
+   * one session and mean something different each time — 5/3/1 presses heavy
+   * for a top set, then again for volume. Zero is a real answer, not a missing
+   * one: it means automatic rest was turned off.
+   */
+  const restFor = useCallback((exerciseId: string, slotId: string | null): number => {
+    const chosenHere = slotId ? restBySlotChoice.get(slotId) : undefined;
+    if (chosenHere !== undefined) return chosenHere;
+    const own = restByExercise.get(exerciseId);
+    if (own !== undefined) return own;
+    const prescribed = slotId ? restBySlot.get(slotId) : undefined;
+    return prescribed ?? defaultRestSeconds;
+  }, [restBySlotChoice, restByExercise, restBySlot, defaultRestSeconds]);
+
   const onComplete = useCallback(async (row: SetRow, values: { weight: number | null; reps: number | null }) => {
     if (discarded.current) return;
     if (row.completed_at) {
@@ -128,11 +174,40 @@ export default function ActiveWorkoutScreen() {
       setRest(null);
     } else {
       await completeSet(row.id, { weightKg: values.weight, reps: values.reps });
-      const seconds = (row.slot_id && restBySlot.get(row.slot_id)) || 120;
-      setRest({ seconds, key: Date.now() });
+      const seconds = restFor(row.exercise_id, row.slot_id);
+      // Still one tap per set: the rest starts itself. Unless it was switched
+      // off for this movement, in which case nothing appears at all.
+      if (seconds > 0) setRest({ seconds, key: Date.now() });
     }
     await reload();
-  }, [reload, restBySlot]);
+  }, [reload, restFor]);
+
+  /**
+   * A rest length was chosen. Starting one by hand is a one-off; setting a
+   * block's is written through to the database, because it should still be
+   * true next week and on the lifter's other phone.
+   *
+   * It is stored against the slot when the block came from a program, so the
+   * other block of the same lift keeps its own; only a block with no slot
+   * behind it — an exercise added mid-session — sets the movement's own
+   * default.
+   */
+  const onPickRest = useCallback(async (seconds: number) => {
+    if (!picker) return;
+    setPicker(null);
+    if (picker.kind === 'manual') {
+      setRest({ seconds, key: Date.now() });
+      return;
+    }
+    if (picker.slotId) {
+      const slotId = picker.slotId;
+      await setSlotRest(slotId, seconds);
+      setRestBySlotChoice((m) => new Map(m).set(slotId, seconds));
+      return;
+    }
+    await setRestPref(picker.exerciseId, seconds);
+    setRestByExercise((m) => new Map(m).set(picker.exerciseId, seconds));
+  }, [picker]);
 
   const onFinish = () => {
     if (discarded.current) return;
@@ -198,6 +273,16 @@ export default function ActiveWorkoutScreen() {
             {mmss(elapsed)}  ·  {done}/{sets.length} sets
           </Text>
         </View>
+        {/* Rest on demand. Not every rest follows a set — you rest after a
+            warm-up, between supersets, or because the rack is busy. */}
+        <Touch
+          onPress={() => setPicker({ kind: 'manual' })}
+          style={styles.headerIcon}
+          haptic="light"
+          hitSlop={space.sm}
+        >
+          <TimerGlyph size={22} color={palette.ink70} />
+        </Touch>
         <Touch onPress={onFinish} style={styles.finish} haptic="medium">
           <Text variant="label" color={palette.live}>Finish</Text>
         </Touch>
@@ -215,6 +300,10 @@ export default function ActiveWorkoutScreen() {
             exerciseId={g.exerciseId}
             sets={g.sets}
             note={g.note}
+            restSeconds={restFor(g.exerciseId, g.slotId)}
+            onEditRest={() =>
+              setPicker({ kind: 'exercise', exerciseId: g.exerciseId, slotId: g.slotId })
+            }
             onComplete={onComplete}
             onAddSet={async () => { await addSetToExercise(workoutId!, g.exerciseId); await reload(); }}
           />
@@ -240,6 +329,25 @@ export default function ActiveWorkoutScreen() {
           />
         )}
       </Surface>
+
+      {picker && (
+        <RestPicker
+          title={picker.kind === 'manual' ? 'Rest' : 'Rest between sets'}
+          subtitle={
+            picker.kind === 'manual'
+              ? 'Starts now.'
+              : 'Runs automatically after every set of this exercise.'
+          }
+          value={
+            picker.kind === 'exercise'
+              ? restFor(picker.exerciseId, picker.slotId)
+              : null
+          }
+          allowOff={picker.kind === 'exercise'}
+          onPick={onPickRest}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -247,11 +355,14 @@ export default function ActiveWorkoutScreen() {
 /* -------------------------------------------------------- exercise block */
 
 function ExerciseBlock({
-  exerciseId, sets, note, onComplete, onAddSet,
+  exerciseId, sets, note, restSeconds, onEditRest, onComplete, onAddSet,
 }: {
   exerciseId: string;
   sets: SetRow[];
   note: string | null;
+  /** Rest that runs itself after each of this exercise's sets; 0 = none. */
+  restSeconds: number;
+  onEditRest: () => void;
   onComplete: (row: SetRow, v: { weight: number | null; reps: number | null }) => void;
   onAddSet: () => void;
 }) {
@@ -265,19 +376,36 @@ function ExerciseBlock({
 
   return (
     <Animated.View style={styles.block} layout={Layout.springify()}>
-      <Touch
-        style={styles.blockHead}
-        onPress={() => router.push(`/exercise/${ex.id}`)}
-        scaleTo={0.99}
-      >
-        <ExerciseLoop frames={ex.frames} size={48} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text variant="bodyMed" numberOfLines={1}>{ex.name}</Text>
-          <Text variant="caption" color={palette.ink45}>
-            {ex.primary.join(' · ')}
+      {/* Two targets, side by side rather than nested — a press inside a press
+          is ambiguous on Android, and both of these have to be reliable. */}
+      <View style={styles.blockHead}>
+        <Touch
+          style={styles.blockHeadMain}
+          onPress={() => router.push(`/exercise/${ex.id}`)}
+          scaleTo={0.99}
+        >
+          <ExerciseLoop frames={ex.frames} size={48} />
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="bodyMed" numberOfLines={1}>{ex.name}</Text>
+            <Text variant="caption" color={palette.ink45}>
+              {ex.primary.join(' · ')}
+            </Text>
+          </View>
+        </Touch>
+
+        {/* This exercise's automatic rest, showing its own current value —
+            reading it takes no taps, and changing it takes two. */}
+        <Touch style={styles.restBtn} onPress={onEditRest} haptic="light" scaleTo={0.94}>
+          <TimerGlyph size={15} color={restSeconds > 0 ? palette.ink45 : palette.ink25} />
+          <Text
+            variant="caption"
+            color={restSeconds > 0 ? palette.ink70 : palette.ink25}
+            numeric
+          >
+            {restSeconds > 0 ? restLabel(restSeconds) : 'Off'}
           </Text>
-        </View>
-      </Touch>
+        </Touch>
+      </View>
 
       {/* Why this weight. The lifter should always be able to see the
           reasoning and disagree with it — the number is a suggestion, not an
@@ -423,10 +551,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.screen, paddingBottom: space.md,
   },
   finish: { height: touch.min, paddingHorizontal: space.md, justifyContent: 'center' },
+  headerIcon: {
+    width: touch.min, height: touch.min,
+    alignItems: 'center', justifyContent: 'center',
+  },
   block: { paddingTop: space.xl },
   blockHead: {
     flexDirection: 'row', alignItems: 'center', gap: space.md,
     paddingHorizontal: space.screen, paddingBottom: space.md,
+  },
+  blockHeadMain: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.md,
+  },
+  restBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: space.xs,
+    height: touch.min, paddingHorizontal: space.md,
+    borderRadius: radius.sm, backgroundColor: palette.ink06,
   },
   coachNote: {
     marginHorizontal: space.screen, marginBottom: space.md,

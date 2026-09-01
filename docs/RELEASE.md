@@ -30,30 +30,12 @@ The progression engine keeps its `gzclp_t1/t2/t3` schemes. Those are generic
 progression rules reachable by any imported program, and the identifiers are
 internal — no scheme name is ever shown to a user.
 
-### 1.2 Deploy the server over HTTPS
+### 1.2 Server over HTTPS — done
 
-The app currently points at `http://192.168.1.206:8080` — a machine on your desk.
-That cannot ship:
-
-- iOS App Transport Security blocks plain HTTP.
-- Android blocks cleartext in release builds.
-- The address is not reachable from the internet.
-
-You need the `server/` app running somewhere with a TLS certificate.
-[`docs/DEPLOY.md`](./DEPLOY.md) covers this: Lambda behind a Function URL, which
-costs nothing at this scale and needs no server to maintain. `server/scripts/deploy.sh`
-does it in one command.
-
-Whatever you choose:
-
-- Set `DYNAMODB_TABLE`, `AWS_REGION`, `JWT_SECRET`, `APPLE_CLIENT_ID` and
-  `GOOGLE_CLIENT_ID` as environment variables there.
-- **Use an IAM role rather than access keys** if the host supports it. If not,
-  create a fresh key for the deployment — do not reuse a local one.
-- Generate a **new** `JWT_SECRET` for production. The local one has been on your
-  laptop in plain text.
-- Put the resulting URL into `API_BASE_URL` in `eas.json` under both `preview`
-  and `production`.
+Live at `https://u9yegyk6n2.execute-api.us-east-1.amazonaws.com` (Lambda behind
+a Function URL); `/health` returns `{"ok":true}`. `API_BASE_URL` in `eas.json`
+points both `preview` and `production` at it, and `eas config` was checked to
+confirm the production profile resolves that value rather than localhost.
 
 ### 1.3 Publish a privacy policy
 
@@ -131,9 +113,19 @@ first time; say yes when it offers.
 
 ### 3.4 The listing
 
-- **Screenshots** — required for 6.9" and 6.5" iPhones. Take them on the
-  simulator: Today with a plan loaded, the logger mid-session, the exercise
-  library, a plan detail, History.
+- **Screenshots** — six are captured in `store/screenshots/ios-6.9/`, taken on
+  an iPhone 17 Pro Max at 1320×2868, which is Apple's 6.9" size exactly, so
+  they upload without resizing. Marketing status bar (9:41, full bars). They
+  cover Today with a plan loaded, the logger mid-session with the rest timer
+  running, the plan library, a plan detail, the exercise library and History.
+  Regenerate with a booted 6.9" simulator and `xcrun simctl io <udid> screenshot`.
+
+  Two caveats. **History is thin** — one session, because it was seeded by hand;
+  worth re-shooting once there is a few weeks of real training in it. And
+  `ios.supportsTablet` is `true`, so **App Store Connect will also demand iPad
+  screenshots** and review will run the app on an iPad. Either shoot an iPad set
+  or set `supportsTablet: false` if the phone is the only device you mean to
+  support.
 - **Description, keywords, subtitle** — drafts in Part 5 below.
 - **App Privacy** — declare what `docs/PRIVACY.md` describes: identifiers and
   health data, linked to the user, used only for app functionality. Not used for

@@ -153,8 +153,12 @@ It avoids the two-factor prompts that make `eas submit` fail halfway.
 ### 3.4 Build and upload
 
     cd mobile
-    npx eas build --platform ios --profile production
-    npx eas submit --platform ios --profile production
+    npm run build:ios
+    npm run submit:ios
+
+The `cd` matters: `eas-cli` is a dependency of `mobile/`, so `npx eas` from the
+repository root fails with "could not determine executable to run". The npm
+scripts exist so the profile and platform cannot be mistyped either.
 
 The build config has been checked: the production profile resolves the HTTPS
 API and the Google sign-in URL scheme, so it will not die at config evaluation.

@@ -9,7 +9,7 @@
     "newArchEnabled": true,
     "backgroundColor": "#0A0A0B",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "co.workoutmaxing.app",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight so it can track your strength relative to it, and reads workouts logged elsewhere so your history is complete.",

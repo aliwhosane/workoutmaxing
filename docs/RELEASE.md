@@ -205,9 +205,11 @@ Reviewers use their own Apple ID, so no demo account is needed.
       aws lambda get-function-configuration --function-name <name> \
         --region us-east-1 --query 'Environment.Variables.APPLE_CLIENT_ID'
 
-- **`ios.supportsTablet` is `true`.** App Store Connect will demand a 13" iPad
-  screenshot set and review will run the app on an iPad. Either shoot that set
-  or set it to `false`.
+- **iPhone only.** `ios.supportsTablet` is `false` as of 2026-09-01, so no iPad
+  screenshot set is required and review will not run the app on an iPad. The
+  layout is portrait and phone-shaped throughout — tab bar, logger, dock — so
+  shipping it stretched to a 13" canvas would have been judged on a design
+  nobody drew. iPad is its own piece of work, not a checkbox.
 
 ## Part 4 — Google Play
 

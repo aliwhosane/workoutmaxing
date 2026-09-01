@@ -9,32 +9,26 @@ dead, and two of them need decisions only you can make.
 
 ## Part 1 — Blockers
 
-### 1.1 Decide what to do about the built-in training plans
+### 1.1 Built-in training plans — decided
 
-**This is the one that carries real risk, and it needs your decision.**
+**Resolved 2026-09-01: only the generic plans ship.**
 
-The app ships fourteen plans. They divide into two groups:
+The named, authored ones — 5/3/1 (×2), StrongLifts, GreySkull, nSuns, GZCLP,
+PHUL and PHAT — are removed from `mobile/src/data/programs.ts`. Wendler, Norton,
+Campbell and Hadim all sell books, apps or coaching built on that material, and
+republishing it under their names inside a distributed app is a different act
+from following it yourself. A takedown would land on the app, not on the plan.
 
-| Group | Plans | Risk |
-|---|---|---|
-| Generic / classic | Novice LP, PPL, Upper/Lower, Madcow, Texas Method, Minimalist | Low — no single author owns a 5×5 |
-| Named, authored | 5/3/1 (×2), GZCLP, PHUL, PHAT, StrongLifts, GreySkull, nSuns | **Needs a decision** |
+Six remain, none of which any single author owns: Novice LP, PPL, Upper/Lower,
+Madcow 5×5, Texas Method and Minimalist Full Body.
 
-Publishing another author's program under their name, in an app you distribute,
-is a different act from running it yourself. Jim Wendler, Layne Norton, Brandon
-Campbell and Mehdi Hadim all sell books, apps or coaching built on this material.
+Users who follow a named plan can still bring it in through **Import a plan**,
+which is the point of that feature. The schema is unchanged, so a licensed
+program later drops in as data with no code change.
 
-Three honest options:
-
-- **Ship only the generic plans.** Delete the named ones from
-  `mobile/src/data/programs.ts`. Zero risk, and the importer means users can
-  still bring in whatever they follow.
-- **Ask permission.** Several of these authors licence their programs. It costs
-  an email and gives you something competitors cannot copy.
-- **Ship as-is.** Some apps do. Understand it is a takedown risk, and takedowns
-  land on the app, not on the plan.
-
-Nothing else in Part 1 requires judgement. This one does.
+The progression engine keeps its `gzclp_t1/t2/t3` schemes. Those are generic
+progression rules reachable by any imported program, and the identifiers are
+internal — no scheme name is ever shown to a user.
 
 ### 1.2 Deploy the server over HTTPS
 

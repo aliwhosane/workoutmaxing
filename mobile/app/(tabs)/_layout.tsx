@@ -1,4 +1,5 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { feedback } from '../../src/design/haptics';
 import { palette } from '../../src/design/tokens';
 
 /**
@@ -17,10 +18,17 @@ import { palette } from '../../src/design/tokens';
  * ours. Everything inside the app stays drawn by us.
  *
  * Four destinations, never more, each one a noun the user already has a word for.
+ *
+ * Being the system's bar, it does not answer back the way everything else in
+ * the app does: Material's bottom navigation has no haptic of its own, so on
+ * Android switching tabs was the one press in the app that felt dead. The
+ * navigator emits `tabPress` for every destination, so one listener here gives
+ * the whole bar the same voice as the rest of the app on both platforms.
  */
 export default function TabLayout() {
   return (
     <NativeTabs
+      screenListeners={{ tabPress: () => feedback('selection') }}
       tintColor={palette.live}
       iconColor={palette.ink45}
       labelStyle={{ color: palette.ink45 }}

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useGoBack } from '../src/navigation';
 import Svg, { Path } from 'react-native-svg';
 import { Text, Touch, Spacer, Rule } from '../src/design/primitives';
+import { feedback } from '../src/design/haptics';
 import { palette, space, radius, touch } from '../src/design/tokens';
 import { useSettings, updateSettings } from '../src/settings/store';
 import type { DistanceUnit, WeightUnit } from '../src/settings/units';
@@ -271,9 +272,11 @@ function ToggleRow({
         <Text variant="body">{title}</Text>
         {detail && <Text variant="caption" color={palette.ink45}>{detail}</Text>}
       </View>
+      {/* A platform control, so it has no haptic of its own — but flipping a
+          setting is an action and should answer back like every other one. */}
       <Switch
         value={value}
-        onValueChange={onChange}
+        onValueChange={(v) => { feedback('selection'); onChange(v); }}
         trackColor={{ true: palette.live, false: palette.ink12 }}
         thumbColor={palette.ink}
         ios_backgroundColor={palette.ink12}

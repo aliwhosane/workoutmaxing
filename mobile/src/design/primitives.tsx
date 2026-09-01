@@ -7,7 +7,7 @@ import {
 import Animated, {
   useAnimatedStyle, useSharedValue, withSpring, withTiming,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import { feedback, type Feedback } from './haptics';
 import { palette, type as t, motion, radius, space, touch } from './tokens';
 
 /* ------------------------------------------------------------------ Text */
@@ -46,7 +46,7 @@ interface TouchProps extends Omit<PressableProps, 'style'> {
   style?: StyleProp<ViewStyle>;
   /** How far it depresses. Bigger targets move less — heavier things move less. */
   scaleTo?: number;
-  haptic?: 'light' | 'medium' | 'heavy' | 'success' | 'none';
+  haptic?: Feedback;
 }
 
 /**
@@ -71,7 +71,7 @@ export const Touch = forwardRef<View, TouchProps>(function Touch(
       {...rest}
       onPressIn={(e) => {
         pressed.value = 1;
-        if (haptic !== 'none') fireHaptic(haptic);
+        feedback(haptic);
         onPressIn?.(e);
       }}
       onPressOut={() => { pressed.value = 0; }}
@@ -82,15 +82,6 @@ export const Touch = forwardRef<View, TouchProps>(function Touch(
     </AnimatedPressable>
   );
 });
-
-function fireHaptic(kind: NonNullable<TouchProps['haptic']>) {
-  switch (kind) {
-    case 'light':   return void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    case 'medium':  return void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    case 'heavy':   return void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    case 'success': return void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }
-}
 
 /* ---------------------------------------------------------------- Button */
 
@@ -111,7 +102,10 @@ export function Button({ title, tone = 'primary', disabled, style, ...rest }: Bu
     <Touch
       {...rest}
       disabled={disabled}
-      haptic={tone === 'primary' ? 'medium' : 'light'}
+      // The tone picks the feedback — the primary action hits harder than a
+      // quiet one — but an explicit `haptic` still wins, which it could not
+      // when this was set unconditionally after the spread.
+      haptic={rest.haptic ?? (tone === 'primary' ? 'medium' : 'light')}
       scaleTo={0.97}
       style={[
         styles.button,

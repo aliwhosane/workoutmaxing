@@ -196,14 +196,19 @@ Reviewers use their own Apple ID, so no demo account is needed.
 
 ### 3.7 Before you press submit
 
-- **`APPLE_CLIENT_ID` on the deployed Lambda must be `co.workoutmaxing.app`.**
-  For a native app that is the `aud` claim Apple puts in the identity token,
-  and `server/src/auth.js` fails closed when it does not match — sign-in would
-  fail for the reviewer, which is a guaranteed rejection. `server/.env` has the
-  right value; confirm the deployed function actually got it:
+- **Server configuration — checked 2026-09-01, all good.** The Lambda is
+  `workout-maxing-sync`; `workout-maxing` is the API Gateway in front of it,
+  which is an easy pair to confuse.
 
-      aws lambda get-function-configuration --function-name <name> \
-        --region us-east-1 --query 'Environment.Variables.APPLE_CLIENT_ID'
+      aws lambda get-function-configuration --function-name workout-maxing-sync \
+        --region us-east-1 --query 'Environment.Variables'
+
+  `APPLE_CLIENT_ID` is `co.workoutmaxing.app`. That has to be exactly the bundle
+  id: for a native app it is the `aud` claim Apple puts in the identity token,
+  and `server/src/auth.js` fails closed on a mismatch, so a wrong value means
+  sign-in fails for the reviewer and the app is rejected. `GOOGLE_CLIENT_ID` is
+  set, and `JWT_SECRET` is 43 characters and — verified by fingerprint — not the
+  copy sitting in `server/.env` on the laptop.
 
 - **iPhone only.** `ios.supportsTablet` is `false` as of 2026-09-01, so no iPad
   screenshot set is required and review will not run the app on an iPad. The

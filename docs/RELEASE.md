@@ -82,69 +82,132 @@ You do not need to do any of this; it is recorded so you know it is handled.
 
 ---
 
-## Part 3 — Apple
+## Part 3 — Apple, step by step
 
-### 3.1 Register the app
+Values you will be asked for, all of them already fixed by the project:
 
-1. **developer.apple.com → Certificates, Identifiers & Profiles → Identifiers**
-2. Register `co.workoutmaxing.app` if it is not already there.
-3. Enable these capabilities on it:
-   - **HealthKit**
-   - **Sign in with Apple**
-4. **App Store Connect → Apps → +** and create the app record. Note the **Apple
-   ID** number it gives you — that is `ascAppId` in `eas.json`.
+| Field | Value |
+|---|---|
+| Bundle ID | `co.workoutmaxing.app` |
+| App name | Workout Maxing |
+| Version | 1.0.0 |
+| Primary category | Health & Fitness |
+| Price | Free |
 
-### 3.2 Fill in `eas.json`
+### 3.1 Developer portal — the Identifier only
 
-Replace the three placeholders under `submit.production.ios`: your Apple ID
-email, the `ascAppId` from the step above, and your Team ID (top right of the
-developer portal).
+**You do not create certificates or provisioning profiles by hand.** EAS makes
+the distribution certificate and the profile on the first build and stores
+them; making your own first is the usual way to end up with a mismatched pair.
+Say yes when it offers.
 
-### 3.3 Build and upload
+The one thing worth doing by hand is the App ID, because its capabilities have
+to match the entitlements in `app.json` or the build fails to sign.
 
-```bash
-cd mobile
-npx eas build --platform ios --profile production
-npx eas submit --platform ios --profile production
-```
+1. developer.apple.com → **Certificates, Identifiers & Profiles** → **Identifiers** → **+**
+2. **App IDs** → **App**
+3. Description: `Workout Maxing` (internal only; letters, numbers and spaces)
+4. Bundle ID: **Explicit**, exactly `co.workoutmaxing.app`
+5. Tick exactly two capabilities, and nothing else:
+   - **HealthKit** — matches `com.apple.developer.healthkit` in `app.json`
+   - **Sign in with Apple** — leave it as *Enable as a primary App ID*
+6. Register.
 
-EAS creates the distribution certificate and provisioning profile for you the
-first time; say yes when it offers.
+Anything ticked here that the app does not use has to be justified at review,
+which is why background modes and push are deliberately absent.
 
-### 3.4 The listing
+Your **Team ID** is on **Membership details** — ten characters, like `A1B2C3D4E5`.
 
-- **Screenshots** — six are captured in `store/screenshots/ios-6.9/`, taken on
-  an iPhone 17 Pro Max at 1320×2868, which is Apple's 6.9" size exactly, so
-  they upload without resizing. Marketing status bar (9:41, full bars). They
-  cover Today with a plan loaded, the logger mid-session with the rest timer
-  running, the plan library, a plan detail, the exercise library and History.
-  Regenerate with a booted 6.9" simulator and `xcrun simctl io <udid> screenshot`.
+### 3.2 App Store Connect — create the record
 
-  Two caveats. **History is thin** — one session, because it was seeded by hand;
-  worth re-shooting once there is a few weeks of real training in it. And
-  `ios.supportsTablet` is `true`, so **App Store Connect will also demand iPad
-  screenshots** and review will run the app on an iPad. Either shoot an iPad set
-  or set `supportsTablet: false` if the phone is the only device you mean to
-  support.
-- **Description, keywords, subtitle** — drafts in Part 5 below.
-- **App Privacy** — declare what `docs/PRIVACY.md` describes: identifiers and
-  health data, linked to the user, used only for app functionality. Not used for
-  tracking. Answer honestly; Apple checks against binary behaviour.
+appstoreconnect.apple.com → **Apps** → **+** → **New App**
 
-### 3.5 What review will ask about
+| Field | What to enter |
+|---|---|
+| Platforms | iOS |
+| Name | `Workout Maxing` — must be unique across the whole App Store; if it is taken you are told immediately |
+| Primary language | English (U.S.) |
+| Bundle ID | pick `co.workoutmaxing.app` from the list — it appears only after 3.1 |
+| SKU | any private string, never shown to anyone: `workout-maxing-ios` |
+| User Access | Full Access |
 
-- **HealthKit.** Explain in the review notes that health access is optional, is
-  used to write finished workouts and read bodyweight, and that the app is fully
-  functional with it denied. Apps that break without HealthKit get rejected.
-- **Sign-in.** Reviewers will check Apple sign-in works. It must succeed against
-  your production server, so deploy before submitting.
-- **Account deletion.** Apple requires apps with account creation to offer
-  in-app deletion. Settings → Delete account does this: it erases everything the
-  server holds, behind two confirmations. Local history is kept deliberately —
-  deleting the account is a decision about syncing, not about throwing away a
-  training log — and the copy says so.
+Once created, **App Information** shows an **Apple ID** — a long number. That
+is `ascAppId` in `eas.json`.
 
----
+### 3.3 Fill in `eas.json`
+
+Under `submit.production.ios`, replace the three placeholders:
+
+- `appleId` — the email you sign in to Apple with
+- `ascAppId` — the number from 3.2
+- `appleTeamId` — from Membership details
+
+None of the three is a secret; they identify, they do not authenticate.
+
+For submission itself, prefer an **App Store Connect API key** over your Apple
+ID password: Team → **Users and Access** → **Integrations** → **App Store
+Connect API** → **+**, role *App Manager*. You download the `.p8` exactly once.
+It avoids the two-factor prompts that make `eas submit` fail halfway.
+**Keep it out of the repo** — `.gitignore` already covers `secrets/`.
+
+### 3.4 Build and upload
+
+    cd mobile
+    npx eas build --platform ios --profile production
+    npx eas submit --platform ios --profile production
+
+The build config has been checked: the production profile resolves the HTTPS
+API and the Google sign-in URL scheme, so it will not die at config evaluation.
+
+### 3.5 The listing
+
+Complete these before the build finishes; the version cannot be submitted until
+every one of them is green.
+
+- **Screenshots** — `store/screenshots/ios-6.9/`, already at 1320×2868.
+- **Description, keywords, subtitle** — drafts in Part 5.
+- **Support URL** — required, and it must resolve. A single page is enough.
+- **Privacy Policy URL** — required, and required again for HealthKit.
+- **App Privacy** — Health & Fitness and Identifiers, both *linked to the user*,
+  both *App Functionality*, **not** used for tracking. It must match
+  `docs/PRIVACY.md`; Apple checks answers against binary behaviour.
+- **Age rating** — the questionnaire lands on 4+ for a training log.
+- **Pricing** — Free.
+
+### 3.6 Review notes — write these, they prevent the usual rejections
+
+Paste something close to this into *App Review Information → Notes*:
+
+> No account is required. The app is fully functional signed out — every
+> feature, including all training plans and the full exercise library, works
+> with no sign-in and no network.
+>
+> Sign-in is optional and exists only to sync between devices. Sign in with
+> Apple is offered alongside Google.
+>
+> HealthKit access is optional and requested only when the user turns on
+> "Save workouts to Apple Health" in Settings. Denying it changes nothing else.
+>
+> Account deletion is in Settings → Delete account, behind two confirmations.
+> It erases everything the server holds. Local training history stays on the
+> device by design, and the copy says so.
+
+Reviewers use their own Apple ID, so no demo account is needed.
+
+### 3.7 Before you press submit
+
+- **`APPLE_CLIENT_ID` on the deployed Lambda must be `co.workoutmaxing.app`.**
+  For a native app that is the `aud` claim Apple puts in the identity token,
+  and `server/src/auth.js` fails closed when it does not match — sign-in would
+  fail for the reviewer, which is a guaranteed rejection. `server/.env` has the
+  right value; confirm the deployed function actually got it:
+
+      aws lambda get-function-configuration --function-name <name> \
+        --region us-east-1 --query 'Environment.Variables.APPLE_CLIENT_ID'
+
+- **`ios.supportsTablet` is `true`.** App Store Connect will demand a 13" iPad
+  screenshot set and review will run the app on an iPad. Either shoot that set
+  or set it to `false`.
 
 ## Part 4 — Google Play
 

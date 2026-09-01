@@ -43,8 +43,8 @@
         {
           "android": {
             "minSdkVersion": 26,
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
@@ -75,6 +75,12 @@
     "experiments": {
       "typedRoutes": true
     },
-    "icon": "./assets/icon.png"
+    "icon": "./assets/icon.png",
+    "extra": {
+      "eas": {
+        "projectId": "19741631-8251-4a9e-b0f2-e9da2f85eb92"
+      }
+    },
+    "owner": "fnuahusen"
   }
 }

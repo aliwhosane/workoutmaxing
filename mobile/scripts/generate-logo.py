@@ -50,17 +50,26 @@ def draw_mark(draw, cx, cy, height, colour, weight):
 # "WM" is far wider than it is tall, so every size is expressed as the
 # fraction of the canvas the mark should *span*. Sizing by height instead is
 # how the first attempt ended up bleeding off the edges.
-MARK_ASPECT = 1.89  # total width as a multiple of letter height
+MARK_ASPECT = 1.89   # width of the letter *paths* as a multiple of letter height
+STROKE = 0.19        # stroke weight as a multiple of letter height
 
 
+# `width_frac` is the *inked* width — the ink you can see, round caps included
+# — and not the width of the underlying paths. The two differ by one full
+# stroke, because a stroke is centred on its path and so hangs half its weight
+# off each end. Measuring the paths instead is what clipped the splash mark
+# flat against both edges: at width_frac 0.92 the ink came to 101% of the
+# canvas and the outer caps were sliced off. Solving for the letter height that
+# puts the *ink* on the requested fraction means a caller asking for 0.86 gets
+# 0.86, with the remainder left as margin.
 def render(size, bg, fg, width_frac=0.66, alpha=False):
     px = size * SS
     img = Image.new('RGBA' if alpha else 'RGB', (px, px), (0, 0, 0, 0) if alpha else bg)
     d = ImageDraw.Draw(img)
     if alpha and bg is not None:
         d.rectangle([0, 0, px, px], fill=bg)
-    h = px * width_frac / MARK_ASPECT
-    draw_mark(d, px / 2, px / 2, h, fg, max(2, h * 0.19))
+    h = px * width_frac / (MARK_ASPECT + STROKE)
+    draw_mark(d, px / 2, px / 2, h, fg, max(2, h * STROKE))
     return img.resize((size, size), Image.LANCZOS)
 
 
@@ -77,24 +86,25 @@ print('writing logo assets:')
 
 # iOS app icon. The App Store rejects any alpha channel, so this is flat RGB.
 # iOS rounds the corners into a squircle, so the mark keeps a clear margin.
-save(render(1024, VOID, LIVE, width_frac=0.62), 'assets/icon.png', keep_alpha=False)
+save(render(1024, VOID, LIVE, width_frac=0.68), 'assets/icon.png', keep_alpha=False)
 
 # Android adaptive icon. The launcher masks to roughly the middle 66%, so the
 # mark is drawn smaller to survive an aggressive circular crop.
 # Launchers mask this to roughly the middle 66% and may crop to a circle, so
 # the mark sits well inside that to survive the most aggressive shape.
-save(render(1024, None, LIVE, width_frac=0.52, alpha=True),
+save(render(1024, None, LIVE, width_frac=0.57, alpha=True),
      'assets/android-icon-foreground.png', keep_alpha=True)
 save(render(1024, VOID, VOID, width_frac=0.0), 'assets/android-icon-background.png', keep_alpha=False)
 
 # Themed icons are tinted by the system, so the shape must be a white silhouette.
-save(render(1024, None, WHITE, width_frac=0.52, alpha=True),
+save(render(1024, None, WHITE, width_frac=0.57, alpha=True),
      'assets/android-icon-monochrome.png', keep_alpha=True)
 
 # Splash: the mark alone on transparency, over the splash background colour.
-# The splash image is placed at a fixed width, so the mark fills its own canvas.
-save(render(512, None, LIVE, width_frac=0.92, alpha=True),
+# expo-splash-screen places this square at a fixed width, so the mark nearly
+# fills its canvas — but not to the edge, or the round caps clip flat.
+save(render(512, None, LIVE, width_frac=0.86, alpha=True),
      'assets/splash-icon.png', keep_alpha=True)
 
-save(render(64, VOID, LIVE, width_frac=0.68), 'assets/favicon.png', keep_alpha=False)
+save(render(64, VOID, LIVE, width_frac=0.75), 'assets/favicon.png', keep_alpha=False)
 print('done')

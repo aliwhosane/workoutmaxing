@@ -12,9 +12,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "co.workoutmaxing.app",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ],
         "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight so it can track your strength relative to it, and reads workouts logged elsewhere so your history is complete.",
         "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health, so they count toward your rings and appear alongside your other activity.",
         "ITSAppUsesNonExemptEncryption": false
@@ -70,7 +67,7 @@
         {
           "NSHealthShareUsageDescription": "Workout Maxing reads your bodyweight and existing workouts so your history is complete.",
           "NSHealthUpdateUsageDescription": "Workout Maxing saves the sessions you log here to Apple Health.",
-          "background": true
+          "background": false
         }
       ],
       "react-native-health-connect"

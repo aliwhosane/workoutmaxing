@@ -1,10 +1,6 @@
 # Privacy Policy — Workout Maxing
 
-**Last updated: 30 August 2026**
-
-This is a draft. It describes what the app actually does today, verified against
-the source. Have someone qualified review it before publishing, and host it at a
-public URL — both app stores require one before they will accept a submission.
+**Last updated: 1 September 2026**
 
 ## The short version
 
@@ -52,10 +48,14 @@ at any time in Apple Health or Health Connect, and the app continues to work.
 
 ## Deleting your data
 
-Signing out of Settings stops syncing and removes the session from your phone;
-your local history is untouched. To delete the copy held on our server, contact
-us at the address below and we will erase it. Deleting the app removes everything
-stored on the device.
+**Settings → Delete account** erases everything we hold on the server — your
+account, your device records and every row of training data — behind two
+confirmations, with no need to contact anyone.
+
+Your training history stays on the phone when you do that. Deleting the account
+is a decision about syncing, not about throwing away a training log. Signing out
+instead simply stops syncing and removes the session from the device. Deleting
+the app removes everything stored on the device.
 
 ## Children
 

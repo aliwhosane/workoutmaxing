@@ -360,3 +360,21 @@ Things a reviewer or a user will notice.
   a user with a broken account will not know.
 - **The exercise images load from a CDN** and are not bundled. First view of an
   exercise needs a network connection.
+- **HealthKit read access is requested and never used.** Deferred past 1.0 on
+  2026-09-01; this is the note so it is not lost.
+
+  `READ = ['HKQuantityTypeIdentifierBodyMass']` on iOS, and `read Weight` on
+  Health Connect, but `readLatestBodyweightKg` and `writeBodyweightKg` have no
+  callers anywhere, and `body_metric` has no writer at all. Only `saveWorkout`
+  is live. So three things currently overclaim:
+
+  - `NSHealthShareUsageDescription` in `app.json` says the app reads bodyweight
+    and reads workouts logged elsewhere. Neither happens.
+  - `docs/PRIVACY.md` and the published page say the same.
+  - Apple reviews HealthKit strictly, and read access requested but unused is a
+    rejection risk under data minimisation.
+
+  Two ways out: implement bodyweight (the schema is already there — the app was
+  designed to show strength relative to it), or drop the read permission and
+  narrow the strings to "saves your finished workouts". Usage strings are baked
+  into the binary, so either needs a rebuild; the policy wording does not.

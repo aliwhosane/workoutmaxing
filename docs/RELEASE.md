@@ -354,8 +354,23 @@ Things a reviewer or a user will notice.
 
 - **The sync engine has never been exercised between two devices.** It is
   verified against the server, but two phones converging has not been tried.
-- **No crash reporting.** Shipping blind. Sentry or similar is worth adding, and
-  changes the privacy disclosure if you do.
+- **No crash reporting and no analytics.** Shipping blind. Worth adding, but
+  four things move together when you do:
+
+  - **The labels gain rows**: Diagnostics → Crash Data and Performance Data,
+    Usage Data → Product Interaction. Labels are metadata, so they can be
+    edited the day it ships without a new build.
+  - **"Used for tracking" stays No.** In Apple's vocabulary tracking means
+    linking your data with third-party data for advertising, or handing it to a
+    data broker. Measuring how people use your own app is not that. Answering
+    Yes obliges you to show the App Tracking Transparency prompt, and shipping
+    that answer without the prompt is a rejection.
+  - **`docs/PRIVACY.md` currently promises the opposite** — "No analytics,
+    crash reporting or tracking SDKs". That claim becomes false the moment an
+    SDK lands, and the published page has to change in the same release.
+  - **The SDK needs its own privacy manifest.** Apple requires one, plus a
+    signature, from commonly-used third-party SDKs. Sentry ships both; check
+    before picking something more obscure.
 - **No offline indication for a failed sync.** Failures are silent by design, but
   a user with a broken account will not know.
 - **The exercise images load from a CDN** and are not bundled. First view of an

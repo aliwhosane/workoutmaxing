@@ -197,8 +197,14 @@ every one of them is green.
 - **Support URL** — `https://aliwhosane.github.io/workoutmaxing/` (live).
 - **Privacy Policy URL** — the same page; required again for HealthKit.
 - **Marketing URL** — leave blank until there is an actual marketing site.
-- **Copyright** — `2026 Ali Husen`. Year first, then the rights holder; Apple
-  adds the © itself, and a URL here is rejected.
+- **Copyright** — `2026 CodeFlip`. Year first, then whoever holds the rights;
+  Apple adds the © itself, and a URL here is rejected. Free text, not verified.
+
+  This is *not* the developer name buyers see — that comes from the account
+  type. An individual enrolment shows the person's legal name, and showing
+  "CodeFlip" there instead would mean an organisation enrolment with a D-U-N-S
+  number. Copyright naming a brand while the seller shows a person is allowed
+  and ordinary for a solo developer.
 - **App Privacy** — Health & Fitness and Identifiers, both *linked to the user*,
   both *App Functionality*, **not** used for tracking. It must match
   `docs/PRIVACY.md`; Apple checks answers against binary behaviour.

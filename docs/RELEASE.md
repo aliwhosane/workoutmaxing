@@ -168,10 +168,37 @@ API and the Google sign-in URL scheme, so it will not die at config evaluation.
 Complete these before the build finishes; the version cannot be submitted until
 every one of them is green.
 
-- **Screenshots** — `store/screenshots/ios-6.9/`, already at 1320×2868.
+- **Screenshots — two iPhone sizes are required, not one.** App Store Connect
+  refuses the version with "You must upload a screenshot for 6.5-inch iPhone
+  displays" if only the 6.9" set is there. Apple does not scale one iPhone size
+  down to cover the other. Both sets are committed, six shots each, same content:
+
+  | Slot | Folder | Size | Captured on |
+  |---|---|---|---|
+  | 6.9" | `store/screenshots/ios-6.9/` | 1320×2868 | iPhone 17 Pro Max |
+  | 6.5" | `store/screenshots/ios-6.5/` | 1242×2688 | iPhone 11 Pro Max |
+
+  Each is its slot's native size, so they upload without resizing. No 6.5"
+  simulator ships with a current Xcode, but the device type does, so make one:
+
+      xcrun simctl create "WM-6.5in" \
+        com.apple.CoreSimulator.SimDeviceType.iPhone-11-Pro-Max \
+        com.apple.CoreSimulator.SimRuntime.iOS-26-5
+
+  Copy `Documents/SQLite/workoutmaxing.db` (with its `-wal` and `-shm`) from an
+  already-seeded simulator's data container rather than re-entering a session by
+  hand, so both sets show identical history. Marketing status bar via
+  `xcrun simctl status_bar <udid> override --time 9:41 --batteryState charged
+  --batteryLevel 100`, and `clear` when done.
+
+  **History is thin** — one seeded session — so re-shoot both sets once there is
+  real training to show.
 - **Description, keywords, subtitle** — drafts in Part 5.
-- **Support URL** — required, and it must resolve. A single page is enough.
-- **Privacy Policy URL** — required, and required again for HealthKit.
+- **Support URL** — `https://aliwhosane.github.io/workoutmaxing/` (live).
+- **Privacy Policy URL** — the same page; required again for HealthKit.
+- **Marketing URL** — leave blank until there is an actual marketing site.
+- **Copyright** — `2026 Ali Husen`. Year first, then the rights holder; Apple
+  adds the © itself, and a URL here is rejected.
 - **App Privacy** — Health & Fitness and Identifiers, both *linked to the user*,
   both *App Functionality*, **not** used for tracking. It must match
   `docs/PRIVACY.md`; Apple checks answers against binary behaviour.

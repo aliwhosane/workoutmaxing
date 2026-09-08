@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -11,6 +11,7 @@ import Animated, { FadeIn, Layout } from 'react-native-reanimated';
 import { Text, Touch, Button, Spacer } from '../../src/design/primitives';
 import { ExerciseLoop } from '../../src/design/ExerciseLoop';
 import { RestTimer } from '../../src/design/RestTimer';
+import { useForegroundInterval } from '../../src/design/useForegroundInterval';
 import { RestPicker, TimerGlyph, restLabel } from '../../src/design/RestPicker';
 import { Surface } from '../../src/design/Surface';
 import { palette, space, radius, type as typo, touch } from '../../src/design/tokens';
@@ -26,6 +27,17 @@ import {
   slotRestPrefs, setSlotRest, type SetRow,
 } from '../../src/db/queries';
 import { getDb } from '../../src/db/client';
+
+/**
+ * Built once, at module scope.
+ *
+ * A layout animation is a description, not an instance — `Layout.springify()`
+ * in the JSX allocates a fresh one on every render and hands Reanimated a new
+ * object to register. This screen is open for the length of a workout, so that
+ * is the difference between four allocations and thousands.
+ */
+const BLOCK_LAYOUT = Layout.springify();
+const ROW_ENTERING = FadeIn.duration(160);
 
 /**
  * The logger.
@@ -51,7 +63,6 @@ export default function ActiveWorkoutScreen() {
   const [sets, setSets] = useState<SetRow[]>([]);
   const [startedAt, setStartedAt] = useState<number>(Date.now());
   const [name, setName] = useState('Workout');
-  const [elapsed, setElapsed] = useState(0);
   const [rest, setRest] = useState<{ seconds: number; key: number } | null>(null);
   const [restBySlot, setRestBySlot] = useState<Map<string, number>>(new Map());
   const [restByExercise, setRestByExercise] = useState<Map<string, number>>(new Map());
@@ -100,11 +111,6 @@ export default function ActiveWorkoutScreen() {
       await reload();
     })();
   }, [workoutId, reload]);
-
-  useEffect(() => {
-    const t = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
-    return () => clearInterval(t);
-  }, [startedAt]);
 
   /**
    * Refetch whenever this screen comes back to the front — the exercise picker
@@ -209,6 +215,21 @@ export default function ActiveWorkoutScreen() {
     setRestByExercise((m) => new Map(m).set(picker.exerciseId, seconds));
   }, [picker]);
 
+  /**
+   * Both of these take the block's own values as arguments rather than closing
+   * over them, so there is one stable function for every block instead of a
+   * new one per block per render — which is what lets `ExerciseBlock` skip a
+   * render it does not need.
+   */
+  const onEditRest = useCallback((exerciseId: string, slotId: string | null) => {
+    setPicker({ kind: 'exercise', exerciseId, slotId });
+  }, []);
+
+  const onAddSet = useCallback(async (exerciseId: string) => {
+    await addSetToExercise(workoutId!, exerciseId);
+    await reload();
+  }, [workoutId, reload]);
+
   const onFinish = () => {
     if (discarded.current) return;
     if (done === 0) {
@@ -225,6 +246,7 @@ export default function ActiveWorkoutScreen() {
       ]);
       return;
     }
+    const elapsed = Math.floor((Date.now() - startedAt) / 1000);
     Alert.alert(`Finish ${name}?`, `${done} sets logged in ${mmss(elapsed)}.`, [
       { text: 'Not yet', style: 'cancel' },
       {
@@ -269,9 +291,7 @@ export default function ActiveWorkoutScreen() {
       <View style={[styles.header, { paddingTop: insets.top + space.sm }]}>
         <View style={{ flex: 1 }}>
           <Text variant="heading" numberOfLines={1}>{name}</Text>
-          <Text variant="caption" color={palette.ink45} numeric>
-            {mmss(elapsed)}  ·  {done}/{sets.length} sets
-          </Text>
+          <SessionClock startedAt={startedAt} done={done} total={sets.length} />
         </View>
         {/* Rest on demand. Not every rest follows a set — you rest after a
             warm-up, between supersets, or because the rack is busy. */}
@@ -298,14 +318,13 @@ export default function ActiveWorkoutScreen() {
           <ExerciseBlock
             key={`${g.exerciseId}-${g.slotId}`}
             exerciseId={g.exerciseId}
+            slotId={g.slotId}
             sets={g.sets}
             note={g.note}
             restSeconds={restFor(g.exerciseId, g.slotId)}
-            onEditRest={() =>
-              setPicker({ kind: 'exercise', exerciseId: g.exerciseId, slotId: g.slotId })
-            }
+            onEditRest={onEditRest}
             onComplete={onComplete}
-            onAddSet={async () => { await addSetToExercise(workoutId!, g.exerciseId); await reload(); }}
+            onAddSet={onAddSet}
           />
         ))}
 
@@ -352,19 +371,59 @@ export default function ActiveWorkoutScreen() {
   );
 }
 
+/* --------------------------------------------------------- session clock */
+
+/**
+ * The running time, kept here rather than on the screen itself.
+ *
+ * It changes once a second, and state that changes once a second re-renders
+ * everything below whatever holds it. Held at the top of the logger, that was
+ * every exercise block and every set row — and every `Touch` inside them,
+ * each of which re-registers an animated style when it renders. Owning the
+ * clock here means a tick costs exactly this one line of text.
+ */
+function SessionClock({ startedAt, done, total }: {
+  startedAt: number; done: number; total: number;
+}) {
+  const [elapsed, setElapsed] = useState(() => Math.floor((Date.now() - startedAt) / 1000));
+
+  // The real start time arrives from SQLite a moment after mount, and the
+  // interval is not restarted for it, so the jump to the true elapsed time
+  // happens here rather than up to a second later on the next tick.
+  useEffect(() => {
+    setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+  }, [startedAt]);
+
+  useForegroundInterval(1000, useCallback(() => {
+    setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+  }, [startedAt]));
+
+  return (
+    <Text variant="caption" color={palette.ink45} numeric>
+      {mmss(elapsed)}  ·  {done}/{total} sets
+    </Text>
+  );
+}
+
 /* -------------------------------------------------------- exercise block */
 
-function ExerciseBlock({
-  exerciseId, sets, note, restSeconds, onEditRest, onComplete, onAddSet,
+/**
+ * Memoised, and given callbacks that take their subject as an argument rather
+ * than closing over it, so a block only re-renders when its own sets, note or
+ * rest length actually change.
+ */
+const ExerciseBlock = memo(function ExerciseBlock({
+  exerciseId, slotId, sets, note, restSeconds, onEditRest, onComplete, onAddSet,
 }: {
   exerciseId: string;
+  slotId: string | null;
   sets: SetRow[];
   note: string | null;
   /** Rest that runs itself after each of this exercise's sets; 0 = none. */
   restSeconds: number;
-  onEditRest: () => void;
+  onEditRest: (exerciseId: string, slotId: string | null) => void;
   onComplete: (row: SetRow, v: { weight: number | null; reps: number | null }) => void;
-  onAddSet: () => void;
+  onAddSet: (exerciseId: string) => void;
 }) {
   const ex = getExercise(exerciseId);
   const router = useRouter();
@@ -375,7 +434,7 @@ function ExerciseBlock({
   const showsWeight = ex.tracking === 'weight_reps';
 
   return (
-    <Animated.View style={styles.block} layout={Layout.springify()}>
+    <Animated.View style={styles.block} layout={BLOCK_LAYOUT}>
       {/* Two targets, side by side rather than nested — a press inside a press
           is ambiguous on Android, and both of these have to be reliable. */}
       <View style={styles.blockHead}>
@@ -395,7 +454,12 @@ function ExerciseBlock({
 
         {/* This exercise's automatic rest, showing its own current value —
             reading it takes no taps, and changing it takes two. */}
-        <Touch style={styles.restBtn} onPress={onEditRest} haptic="light" scaleTo={0.94}>
+        <Touch
+          style={styles.restBtn}
+          onPress={() => onEditRest(ex.id, slotId)}
+          haptic="light"
+          scaleTo={0.94}
+        >
           <TimerGlyph size={15} color={restSeconds > 0 ? palette.ink45 : palette.ink25} />
           <Text
             variant="caption"
@@ -440,16 +504,16 @@ function ExerciseBlock({
         />
       ))}
 
-      <Touch onPress={onAddSet} style={styles.addSet} haptic="light">
+      <Touch onPress={() => onAddSet(ex.id)} style={styles.addSet} haptic="light">
         <Text variant="caption" color={palette.ink45}>+ Set</Text>
       </Touch>
     </Animated.View>
   );
-}
+});
 
 /* ------------------------------------------------------------- a set row */
 
-function SetRowView({
+const SetRowView = memo(function SetRowView({
   row, index, showsWeight, isDuration, onComplete,
 }: {
   row: SetRow; index: number; showsWeight: boolean; isDuration: boolean;
@@ -479,7 +543,7 @@ function SetRowView({
   const complete = !!row.completed_at;
 
   return (
-    <Animated.View entering={FadeIn.duration(160)} style={[styles.setRow, complete && styles.setRowDone]}>
+    <Animated.View entering={ROW_ENTERING} style={[styles.setRow, complete && styles.setRowDone]}>
       <Text variant="label" color={complete ? palette.ink45 : palette.ink70} style={{ width: 28 }} numeric>
         {index + 1}
       </Text>
@@ -516,7 +580,7 @@ function SetRowView({
       </Touch>
     </Animated.View>
   );
-}
+});
 
 /** A number, not a text box. No border, no background — just the figure. */
 function NumberField({

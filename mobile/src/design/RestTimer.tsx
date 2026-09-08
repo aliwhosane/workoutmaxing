@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { AppState, View, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing, cancelAnimation,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Text, Touch } from './primitives';
+import { useForegroundInterval } from './useForegroundInterval';
 import { liquidGlassAvailable } from './Surface';
 import { palette, space, radius, touch } from './tokens';
 
@@ -32,46 +33,71 @@ export function RestTimer({
   const progress = useSharedValue(1);
   const fired = useRef(false);
 
+  /**
+   * Held in a ref so `fire` can stay referentially stable. It is a dependency
+   * of the effect that arms the rest, and a caller passing an inline arrow —
+   * which every caller eventually does — would otherwise re-arm the deadline
+   * on every render, quietly restarting the rest instead of counting it down.
+   */
+  const onDoneRef = useRef(onDone);
+  useEffect(() => { onDoneRef.current = onDone; });
+
+  /**
+   * The rail glides rather than stepping once a second, so it animates over
+   * whatever is genuinely left rather than over `seconds` — which is the same
+   * thing on a fresh rest, and the correct thing on a resumed one.
+   *
+   * Reanimated animations run on the UI thread, which is frozen while the app
+   * is in the background. Answer a message mid-rest and the rail would come
+   * back claiming more time than the clock does, so this also runs on the way
+   * back to the foreground.
+   */
+  const run = useCallback(() => {
+    const left = deadline.current - Date.now();
+    cancelAnimation(progress);
+    progress.value = Math.max(0, Math.min(1, left / (seconds * 1000)));
+    if (left > 0) {
+      progress.value = withTiming(0, { duration: left, easing: Easing.linear });
+    }
+  }, [seconds, progress]);
+
+  /** Rest is up. Guarded, because both the timeout and the tick can get here. */
+  const fire = useCallback(() => {
+    if (fired.current) return;
+    fired.current = true;
+    setRemaining(0);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    onDoneRef.current?.();
+  }, []);
+
   useEffect(() => {
     deadline.current = Date.now() + seconds * 1000;
     fired.current = false;
     setRemaining(seconds);
-
-    /**
-     * The rail glides rather than stepping once a second, so it animates over
-     * whatever is genuinely left rather than over `seconds` — which is the same
-     * thing on a fresh rest, and the correct thing on a resumed one.
-     */
-    const run = () => {
-      const left = deadline.current - Date.now();
-      cancelAnimation(progress);
-      progress.value = Math.max(0, Math.min(1, left / (seconds * 1000)));
-      if (left > 0) {
-        progress.value = withTiming(0, { duration: left, easing: Easing.linear });
-      }
-    };
     run();
 
-    const tick = setInterval(() => {
-      const left = Math.max(0, Math.round((deadline.current - Date.now()) / 1000));
-      setRemaining(left);
-      if (left === 0 && !fired.current) {
-        fired.current = true;
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        onDone?.();
-      }
-    }, 250);
-
     /**
-     * Reanimated animations run on the UI thread, which is frozen while the app
-     * is in the background. Answer a message mid-rest and the rail would come
-     * back claiming more time than the clock does, so it is re-derived from the
-     * deadline every time the app returns to the foreground.
+     * Completion is one timeout rather than something the display tick happens
+     * to notice. That decouples the buzz from the redraw: the tick below can
+     * stop while the app is backgrounded without the end of rest going with
+     * it, so a phone left in a pocket mid-set still gets told when to lift.
      */
-    const sub = AppState.addEventListener('change', (s) => { if (s === 'active') run(); });
+    const done = setTimeout(fire, Math.max(0, deadline.current - Date.now()));
 
-    return () => { clearInterval(tick); cancelAnimation(progress); sub.remove(); };
-  }, [seconds, onDone, progress]);
+    return () => { clearTimeout(done); cancelAnimation(progress); };
+  }, [seconds, progress, run, fire]);
+
+  /**
+   * The readout, which is only worth redrawing while someone can see it. Four
+   * times a second is enough that the number never looks like it skipped, and
+   * it is re-derived from the deadline rather than decremented, so pausing it
+   * in the background cannot make rest drift.
+   */
+  useForegroundInterval(250, useCallback(() => {
+    const left = Math.max(0, Math.round((deadline.current - Date.now()) / 1000));
+    setRemaining(left);
+    if (left === 0) fire();
+  }, [fire]), run);
 
   const rail = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
   const done = remaining === 0;

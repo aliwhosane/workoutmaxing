@@ -543,41 +543,47 @@ const SetRowView = memo(function SetRowView({
   const complete = !!row.completed_at;
 
   return (
-    <Animated.View entering={ROW_ENTERING} style={[styles.setRow, complete && styles.setRowDone]}>
-      <Text variant="label" color={complete ? palette.ink45 : palette.ink70} style={{ width: 28 }} numeric>
-        {index + 1}
-      </Text>
+    /* The fade is on a wrapper rather than on the row itself, because a
+       completed row dims via `opacity` and an entering animation drives the
+       same property — Reanimated warns about exactly this, and the two were
+       quietly competing for the opacity of any row that mounts already done. */
+    <Animated.View entering={ROW_ENTERING}>
+      <View style={[styles.setRow, complete && styles.setRowDone]}>
+        <Text variant="label" color={complete ? palette.ink45 : palette.ink70} style={{ width: 28 }} numeric>
+          {index + 1}
+        </Text>
 
-      {showsWeight && (
-        <NumberField value={weight} onChange={setWeight} dimmed={complete} />
-      )}
-      <NumberField value={reps} onChange={setReps} dimmed={complete} integer />
+        {showsWeight && (
+          <NumberField value={weight} onChange={setWeight} dimmed={complete} />
+        )}
+        <NumberField value={reps} onChange={setReps} dimmed={complete} integer />
 
-      {/* The one tap that matters. Large, unmissable, and always in the same
-          spot so it can be hit without looking. */}
-      <Touch
-        style={[styles.check, complete && styles.checkDone]}
-        haptic={complete ? 'light' : 'success'}
-        scaleTo={0.88}
-        onPress={() =>
-          onComplete(row, {
-            // Same rule as editing history: a prefilled weight the lifter did
-            // not touch is stored exactly as it was suggested.
-            weight: weightUnchanged(weight, row.weight_kg, weightUnit)
-              ? row.weight_kg
-              : weight ? displayToKg(Number(weight), weightUnit) : null,
-            reps: reps ? Number(reps) : null,
-          })
-        }
-      >
-        <Svg width={22} height={22} viewBox="0 0 24 24">
-          <Path
-            d="M5 12.5l4.5 4.5L19 7.5"
-            stroke={complete ? palette.liveInk : palette.ink25}
-            strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill="none"
-          />
-        </Svg>
-      </Touch>
+        {/* The one tap that matters. Large, unmissable, and always in the same
+            spot so it can be hit without looking. */}
+        <Touch
+          style={[styles.check, complete && styles.checkDone]}
+          haptic={complete ? 'light' : 'success'}
+          scaleTo={0.88}
+          onPress={() =>
+            onComplete(row, {
+              // Same rule as editing history: a prefilled weight the lifter did
+              // not touch is stored exactly as it was suggested.
+              weight: weightUnchanged(weight, row.weight_kg, weightUnit)
+                ? row.weight_kg
+                : weight ? displayToKg(Number(weight), weightUnit) : null,
+              reps: reps ? Number(reps) : null,
+            })
+          }
+        >
+          <Svg width={22} height={22} viewBox="0 0 24 24">
+            <Path
+              d="M5 12.5l4.5 4.5L19 7.5"
+              stroke={complete ? palette.liveInk : palette.ink25}
+              strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" fill="none"
+            />
+          </Svg>
+        </Touch>
+      </View>
     </Animated.View>
   );
 });

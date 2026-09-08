@@ -122,6 +122,16 @@ it rather than hand-editing a PNG. Regenerating assets is not enough on its own 
 `expo prebuild` has to run afterwards or the native projects keep the old icons,
 which is silent and easy to miss.
 
+**The onboarding clips are recordings of the real app.**
+`mobile/assets/onboarding/*.gif` are cropped screen recordings of the logger and
+of Today, not illustrations — so they go stale silently when those screens
+change, and an onboarding that shows a UI the app no longer has is worse than
+one that shows nothing. Re-record from the simulator (`xcrun simctl io <udid>
+recordVideo`), crop at the full width of the recording device so the app's own
+gutter keeps content clear of the well's rounded corners, and keep the aspect in
+step with `WELL_ASPECT` in `app/onboarding.tsx`. Cards with no action to film
+carry a glyph instead; don't stage a recording of nothing happening.
+
 ## Commands
 
     cd mobile && npx expo start --ios     # run

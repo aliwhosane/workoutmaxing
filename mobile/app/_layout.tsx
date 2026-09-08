@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import { openDatabase } from '../src/db/client';
+import { openDatabase, kvGet } from '../src/db/client';
 import { seedBuiltInPrograms } from '../src/data/programs';
 import { loadSettings } from '../src/settings/store';
 import { restoreSession } from '../src/auth/store';
@@ -14,8 +14,12 @@ import { palette, motion } from '../src/design/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+const ONBOARDING_KEY = 'onboarding_seen_v1';
+
 export default function RootLayout() {
+  const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
     /**
@@ -35,6 +39,8 @@ export default function RootLayout() {
     (async () => {
       try {
         await openDatabase();
+        const seenOnboarding = await kvGet(ONBOARDING_KEY);
+        setNeedsOnboarding(!seenOnboarding);
         // Settings before programs: every screen that renders a number reads
         // them synchronously, so they must be hydrated before the first paint
         // or weights would flash in the wrong unit.
@@ -56,6 +62,12 @@ export default function RootLayout() {
     return () => clearTimeout(watchdog);
   }, []);
 
+  // Deferred until after first paint, not fired mid-boot, so it lands as a
+  // navigation rather than racing the Stack's own initial render.
+  useEffect(() => {
+    if (ready && needsOnboarding) router.replace('/onboarding' as never);
+  }, [ready, needsOnboarding, router]);
+
   if (!ready) return <View style={{ flex: 1, backgroundColor: palette.void }} />;
 
   return (
@@ -70,6 +82,10 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="onboarding"
+            options={{ presentation: 'fullScreenModal', animation: 'fade', gestureEnabled: false }}
+          />
           <Stack.Screen name="exercise/[id]" options={{ presentation: 'card' }} />
           <Stack.Screen name="settings" options={{ presentation: 'card' }} />
           {/* A past session, opened from history. A card, unlike the logger

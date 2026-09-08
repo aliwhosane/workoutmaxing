@@ -19,6 +19,27 @@ export function resolveExercise(query: string): string | null {
 export const parse = (text: string): ParsedProgram => parseProgram(text, resolveExercise);
 
 /**
+ * What the lifter called the plan, overriding whatever the paste said.
+ *
+ * Kept separate from `ParsedProgram` so the parser stays a pure reading of the
+ * text: the import screen prefills these from the parse and the user has the
+ * last word. Without them every paste that omits a `Name:` header lands as
+ * another "Imported plan", and a shelf of identically named plans is no shelf
+ * at all.
+ */
+export interface ImportDetails {
+  name?: string | null;
+  author?: string | null;
+  description?: string | null;
+}
+
+/** Empty and whitespace-only fields mean "not given", not an empty string. */
+const clean = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
+
+/**
  * Writes an imported program in as the user's own.
  *
  * Marked `origin='user'`, so it is never touched by the built-in re-seed and
@@ -26,10 +47,17 @@ export const parse = (text: string): ParsedProgram => parseProgram(text, resolve
  * whose exercise could not be matched are skipped — they were surfaced as
  * warnings before the user chose to import.
  */
-export async function saveImportedProgram(parsed: ParsedProgram): Promise<string> {
+export async function saveImportedProgram(
+  parsed: ParsedProgram,
+  details: ImportDetails = {},
+): Promise<string> {
   const db = await getDb();
   const ts = now();
   const programId = uuid();
+
+  const name = clean(details.name) ?? clean(parsed.name) ?? 'Imported plan';
+  const author = clean(details.author) ?? clean(parsed.author);
+  const description = clean(details.description) ?? clean(parsed.description);
 
   const weeks = new Set(parsed.days.map((d) => d.week).filter((w): w is number => w != null));
   // Days per week, so a wave program reports its real frequency rather than
@@ -41,7 +69,7 @@ export async function saveImportedProgram(parsed: ParsedProgram): Promise<string
       `INSERT INTO program
          (id, name, author, description, origin, goal, days_per_week, weeks, accent, default_scheme, updated_at, dirty)
        VALUES (?, ?, ?, ?, 'user', 'general', ?, ?, ?, ?, ?, 1)`,
-      programId, parsed.name, parsed.author, null,
+      programId, name, author, description,
       perWeek || null, weeks.size || null, '#D6FF3F',
       // Percentage-based imports drive off a training max; everything else
       // holds what was last lifted until the user picks a scheme.

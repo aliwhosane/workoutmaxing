@@ -36,8 +36,14 @@ export interface ParsedDay {
 }
 
 export interface ParsedProgram {
-  name: string;
+  /**
+   * What the paste called itself, or null when it never said. Deliberately not
+   * defaulted here: the import screen needs to know the difference between a
+   * name the source gave and one we made up, so it can ask for the second.
+   */
+  name: string | null;
   author: string | null;
+  description: string | null;
   days: ParsedDay[];
   warnings: { line: number; text: string; reason: string }[];
 }
@@ -48,7 +54,8 @@ export type ExerciseResolver = (query: string) => string | null;
 const WEEK_RE = /^\s*week\s+(\d+)\b/i;
 const DAY_RE = /^\s*(?:day\s*(\d+)?\s*[—\-–:]?\s*)?(.*)$/i;
 const DAY_HEADER_RE = /^\s*day\b/i;
-const HEADER_RE = /^\s*(name|title|program|author|coach)\s*[:\-]\s*(.+)$/i;
+const HEADER_RE =
+  /^\s*(name|title|program|author|coach|by|description|about|summary)\s*[:\-]\s*(.+)$/i;
 
 /**
  * How people actually write sets and reps.
@@ -89,6 +96,7 @@ export function parseProgram(text: string, resolve: ExerciseResolver): ParsedPro
 
   let name = '';
   let author: string | null = null;
+  let description: string | null = null;
   let currentWeek: number | null = null;
   let current: ParsedDay | null = null;
 
@@ -101,8 +109,12 @@ export function parseProgram(text: string, resolve: ExerciseResolver): ParsedPro
     const header = line.match(HEADER_RE);
     if (header) {
       const key = header[1].toLowerCase();
-      if (key === 'author' || key === 'coach') author = header[2].trim();
-      else name = header[2].trim();
+      if (key === 'author' || key === 'coach' || key === 'by') author = header[2].trim();
+      else if (key === 'description' || key === 'about' || key === 'summary') {
+        // More than one description line reads as a paragraph, so they join
+        // rather than the last one winning.
+        description = description ? `${description} ${header[2].trim()}` : header[2].trim();
+      } else name = header[2].trim();
       return;
     }
 
@@ -155,8 +167,9 @@ export function parseProgram(text: string, resolve: ExerciseResolver): ParsedPro
   });
 
   return {
-    name: name || 'Imported plan',
+    name: name || null,
     author,
+    description,
     days: days.filter((d) => d.slots.length > 0),
     warnings,
   };

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,19 +31,42 @@ export default function ImportProgramScreen() {
   const goBack = useGoBack();
   const [text, setText] = useState('');
 
+  /**
+   * The plan's identity, kept apart from the paste.
+   *
+   * Prefilled from whatever the source declared, but only while the field is
+   * untouched — once the lifter types their own name, re-parsing a further
+   * paste must not overwrite it.
+   */
+  const [name, setName] = useState('');
+  const [author, setAuthor] = useState('');
+  const [description, setDescription] = useState('');
+  const edited = useRef({ name: false, author: false, description: false });
+
   // Parsing is cheap and pure, so the preview updates as the user types rather
   // than hiding behind a button.
   const parsed = useMemo(() => (text.trim() ? parse(text) : null), [text]);
+
+  useEffect(() => {
+    if (!parsed) return;
+    if (!edited.current.name && parsed.name) setName(parsed.name);
+    if (!edited.current.author && parsed.author) setAuthor(parsed.author);
+    if (!edited.current.description && parsed.description) setDescription(parsed.description);
+  }, [parsed]);
 
   const matched = parsed?.days.reduce(
     (n, d) => n + d.slots.filter((s) => s.exerciseId).length, 0) ?? 0;
   const total = parsed?.days.reduce((n, d) => n + d.slots.length, 0) ?? 0;
 
+  // A plan with no name is the thing this screen exists to prevent, so it
+  // gates the Import button alongside having something to import.
+  const ready = matched > 0 && name.trim().length > 0;
+
   const save = async () => {
-    if (!parsed || matched === 0) return;
+    if (!parsed || !ready) return;
     const skipped = total - matched;
     const go = async () => {
-      const id = await saveImportedProgram(parsed);
+      const id = await saveImportedProgram(parsed, { name, author, description });
       router.replace(`/program/${id}`);
     };
 
@@ -65,8 +88,8 @@ export default function ImportProgramScreen() {
           <Text variant="label" color={palette.ink45}>Cancel</Text>
         </Touch>
         <Text variant="label">Import a plan</Text>
-        <Touch onPress={save} style={styles.headBtn} haptic="medium" disabled={matched === 0}>
-          <Text variant="label" color={matched > 0 ? palette.live : palette.ink25}>Import</Text>
+        <Touch onPress={save} style={styles.headBtn} haptic="medium" disabled={!ready}>
+          <Text variant="label" color={ready ? palette.live : palette.ink25}>Import</Text>
         </Touch>
       </View>
 
@@ -78,9 +101,10 @@ export default function ImportProgramScreen() {
         <Text variant="caption" color={palette.ink45} style={styles.blurb}>
           Paste a plan from anywhere — a spreadsheet, a PDF, a forum post, a
           coach’s email. It reads the usual ways people write sets:
-          “Squat 5x5”, “3 sets of 8-12”, “@75%”, “RPE 8”. Anything it can’t
-          place is listed below rather than guessed at, and whatever you paste
-          stays on this phone.
+          “Squat 5x5”, “3 sets of 8-12”, “@75%”, “RPE 8”. A “Name:”,
+          “Author:” or “Description:” line is picked up too — you can edit all
+          three below. Anything it can’t place is listed rather than guessed
+          at, and whatever you paste stays on this phone.
         </Text>
 
         <TextInput
@@ -97,6 +121,42 @@ export default function ImportProgramScreen() {
 
         {parsed && (
           <>
+            {/* The plan's identity. It sits above the preview because it is
+                what the lifter will see on their shelf afterwards — the days
+                below are a check that the paste read correctly, this is the
+                part they own. */}
+            <View style={styles.details}>
+              <Text variant="micro" color={palette.ink45}>THIS PLAN</Text>
+              <Spacer h={space.sm} />
+              <TextInput
+                value={name}
+                onChangeText={(t) => { edited.current.name = true; setName(t); }}
+                placeholder="Name this plan"
+                placeholderTextColor={palette.ink25}
+                style={styles.nameField}
+                returnKeyType="next"
+              />
+              <Rule />
+              <TextInput
+                value={author}
+                onChangeText={(t) => { edited.current.author = true; setAuthor(t); }}
+                placeholder="Author or coach"
+                placeholderTextColor={palette.ink25}
+                style={styles.field}
+                returnKeyType="next"
+              />
+              <Rule />
+              <TextInput
+                value={description}
+                onChangeText={(t) => { edited.current.description = true; setDescription(t); }}
+                placeholder="What it's for — a line or two"
+                placeholderTextColor={palette.ink25}
+                style={[styles.field, styles.descriptionField]}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
             <View style={styles.summary}>
               <Text variant="micro" color={palette.ink45}>
                 {parsed.days.length} DAY{parsed.days.length === 1 ? '' : 'S'}
@@ -183,6 +243,13 @@ const styles = StyleSheet.create({
     minHeight: 180, backgroundColor: palette.surface, borderRadius: radius.md,
     color: palette.ink, ...typo.body,
   },
+  details: {
+    marginHorizontal: space.screen, marginTop: space.lg,
+    padding: space.md, backgroundColor: palette.surface, borderRadius: radius.md,
+  },
+  nameField: { color: palette.ink, ...typo.heading, paddingVertical: space.sm },
+  field: { color: palette.ink, ...typo.body, paddingVertical: space.md },
+  descriptionField: { minHeight: 60 },
   summary: { paddingHorizontal: space.screen, paddingTop: space.lg },
   warnBox: {
     marginHorizontal: space.screen, marginTop: space.md, padding: space.md,

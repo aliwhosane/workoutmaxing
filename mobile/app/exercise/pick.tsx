@@ -10,6 +10,9 @@ import { searchExercises, label, type Exercise } from '../../src/data/catalog';
 import { addExerciseToWorkout } from '../../src/db/queries';
 import { setPendingDay } from '../../src/store/draftProgram';
 
+/** Hoisted: an inline arrow is a new component type on every render. */
+const Separator = () => <Rule inset={space.screen + 44 + space.md} />;
+
 /**
  * Add an exercise to a session already in progress. Search-first: mid-workout
  * you already know what you want, so the field is focused on arrival and one
@@ -61,7 +64,7 @@ export default function PickExerciseScreen() {
         data={results}
         keyExtractor={(e) => e.id}
         keyboardShouldPersistTaps="handled"
-        ItemSeparatorComponent={() => <Rule inset={space.screen + 44 + space.md} />}
+        ItemSeparatorComponent={Separator}
         contentContainerStyle={{ paddingTop: space.md, paddingBottom: insets.bottom + space.xl }}
         renderItem={({ item, index }) => (
           <Touch style={styles.row} onPress={() => pick(item)} scaleTo={0.985}>

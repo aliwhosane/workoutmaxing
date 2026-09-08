@@ -1,6 +1,6 @@
-import { useMemo, useState, useCallback } from 'react';
+import { memo, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  View, StyleSheet, FlatList, TextInput, ScrollView, Keyboard,
+  View, StyleSheet, FlatList, TextInput, ScrollView, Keyboard, type ViewToken,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -14,9 +14,15 @@ import {
 
 const ROW_HEIGHT = 76;
 
+/**
+ * Hoisted, because an inline `() => <Rule />` is a new component type on every
+ * render — React tears down and rebuilds every separator in the list rather
+ * than leaving them alone.
+ */
+const Separator = () => <Rule inset={space.screen + 56 + space.md} />;
+
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState<string | null>(null);
@@ -27,11 +33,31 @@ export default function LibraryScreen() {
     [query, muscle, equipment],
   );
 
+  /**
+   * Which rows are actually on screen.
+   *
+   * Every row cross-fades between two photographs on a loop, and the list is
+   * 873 rows long. `windowSize` keeps a few screens of them mounted either
+   * side of the viewport, so without this the library is running dozens of
+   * timelines for rows nobody can see — which is the whole reason
+   * `ExerciseLoop` takes a `paused` prop.
+   */
+  const [visible, setVisible] = useState<ReadonlySet<string>>(() => new Set());
+
+  // Both of these have to keep the same identity for the life of the list —
+  // FlatList refuses to accept a changed viewability configuration.
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 30 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      setVisible(new Set(viewableItems.map((v) => v.key)));
+    },
+  ).current;
+
   const renderItem = useCallback(
     ({ item }: { item: Exercise }) => (
-      <ExerciseRow exercise={item} onPress={() => router.push(`/exercise/${item.id}`)} />
+      <ExerciseRow exercise={item} paused={!visible.has(item.id)} />
     ),
-    [router],
+    [visible],
   );
 
   // Fixed row height lets the list skip measurement entirely — the difference
@@ -88,8 +114,10 @@ export default function LibraryScreen() {
         keyExtractor={(e) => e.id}
         renderItem={renderItem}
         getItemLayout={getItemLayout}
-        ItemSeparatorComponent={() => <Rule inset={space.screen + 56 + space.md} />}
+        ItemSeparatorComponent={Separator}
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+        viewabilityConfig={viewabilityConfig}
+        onViewableItemsChanged={onViewableItemsChanged}
         keyboardDismissMode="on-drag"
         onScrollBeginDrag={Keyboard.dismiss}
         initialNumToRender={12}
@@ -107,10 +135,23 @@ export default function LibraryScreen() {
   );
 }
 
-function ExerciseRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
+/**
+ * Memoised and routing itself, so the only prop that ever changes is `paused`
+ * — otherwise every row in the window re-renders each time the set of visible
+ * rows does, which is on every scroll.
+ */
+const ExerciseRow = memo(function ExerciseRow({
+  exercise, paused,
+}: { exercise: Exercise; paused: boolean }) {
+  const router = useRouter();
   return (
-    <Touch style={styles.row} onPress={onPress} scaleTo={0.985} haptic="light">
-      <ExerciseLoop frames={exercise.frames} size={56} />
+    <Touch
+      style={styles.row}
+      onPress={() => router.push(`/exercise/${exercise.id}`)}
+      scaleTo={0.985}
+      haptic="light"
+    >
+      <ExerciseLoop frames={exercise.frames} size={56} paused={paused} />
       <View style={styles.rowText}>
         <Text variant="bodyMed" numberOfLines={1}>{exercise.name}</Text>
         <Text variant="caption" color={palette.ink45} numberOfLines={1}>
@@ -120,7 +161,7 @@ function ExerciseRow({ exercise, onPress }: { exercise: Exercise; onPress: () =>
       </View>
     </Touch>
   );
-}
+});
 
 function SearchField({ value, onChange }: { value: string; onChange: (s: string) => void }) {
   return (

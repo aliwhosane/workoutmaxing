@@ -14,22 +14,28 @@ const ONBOARDING_KEY = 'onboarding_seen_v1';
 /**
  * The media well.
  *
- * One shape for every card, so the words underneath sit on the same line as you
- * swipe. What goes in it differs: where there is a real action to show, it is a
- * recording of the actual app doing it — cropped to just the part that moves,
- * because a whole phone screen shrunk to this size is unreadable. Where there
- * is nothing to film — an absence like "no account needed" — it holds a glyph
- * rather than a staged demonstration of nothing happening.
+ * A box of the same size on every card, so the words underneath sit on the same
+ * line as you swipe. What goes in it differs: where there is a real action to
+ * show, it is a recording of the actual app doing it. Where there is nothing to
+ * film — an absence like "no account needed" — it holds a glyph rather than a
+ * staged demonstration of nothing happening.
  *
- * The aspect ratio is the crop the clips were cut to; keep them in step. They
- * are cut at the full width of the phone they were recorded on, so the app's
- * own screen gutter keeps content clear of the well's rounded corners.
+ * Clips are fitted rather than cropped, so each keeps its own shape and is
+ * drawn as large as the box allows. Everything here is black on black, so the
+ * letterboxing that leaves is invisible — which is why the box itself is not
+ * painted, and a clip reads as the app rather than as a framed screenshot.
+ *
+ * It takes a little over half the screen. That is deliberately generous: these
+ * are whole phone screens shrunk down, and below about this size the exercise
+ * names stop being readable and the clip stops teaching anything.
  */
-const WELL_ASPECT = 1242 / 605;
-const WELL_MAX_WIDTH = 340;
+const WELL_HEIGHT_FRACTION = 0.54;
 
-function Well({ children }: { children: React.ReactNode }) {
-  return <View style={styles.well}>{children}</View>;
+/** Sized against the well rather than the old badge, or it swims in the box. */
+const GLYPH = 148;
+
+function Well({ height, children }: { height: number; children: React.ReactNode }) {
+  return <View style={[styles.well, { height }]}>{children}</View>;
 }
 
 /** A recording of the app, played in the well. */
@@ -38,7 +44,7 @@ function Clip({ source }: { source: ImageSource }) {
     <Image
       source={source}
       style={StyleSheet.absoluteFill}
-      contentFit="cover"
+      contentFit="contain"
       // Decoded once and kept — these loop for as long as the card is on
       // screen, and re-decoding a GIF every swipe is visible as a stutter.
       cachePolicy="memory-disk"
@@ -49,7 +55,7 @@ function Clip({ source }: { source: ImageSource }) {
 
 function ShieldGlyph() {
   return (
-    <Svg width={88} height={88} viewBox="0 0 72 72">
+    <Svg width={GLYPH} height={GLYPH} viewBox="0 0 72 72">
       <Path
         d="M36 14L54 21V34C54 46 46.5 54.5 36 58C25.5 54.5 18 46 18 34V21L36 14Z"
         stroke={palette.ink45}
@@ -64,7 +70,7 @@ function ShieldGlyph() {
 
 function ProgressGlyph() {
   return (
-    <Svg width={88} height={88} viewBox="0 0 72 72">
+    <Svg width={GLYPH} height={GLYPH} viewBox="0 0 72 72">
       <Path d="M18 46L29 35L38 42L54 22" stroke={palette.ink45} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       <Circle cx={18} cy={46} r={3} fill={palette.ink45} />
       <Circle cx={29} cy={35} r={3} fill={palette.ink45} />
@@ -93,7 +99,7 @@ const SLIDES: Slide[] = [
     body: "Weight, reps, done. Nothing else gets in the way while you're training.",
   },
   {
-    clip: require('../assets/onboarding/todays-plan.gif') as ImageSource,
+    clip: require('../assets/onboarding/pick-a-plan.gif') as ImageSource,
     title: 'A plan for every day',
     body: 'Pick a program and the app tells you exactly what to lift, every session, automatically.',
   },
@@ -112,9 +118,13 @@ const SLIDES: Slide[] = [
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+
+  // Off the window rather than a constant, so a small phone shrinks the clip
+  // instead of pushing the words off the bottom.
+  const wellHeight = Math.round(height * WELL_HEIGHT_FRACTION);
 
   const finish = useCallback(() => {
     kvSet(ONBOARDING_KEY, '1').catch(() => {});
@@ -156,10 +166,10 @@ export default function OnboardingScreen() {
       >
         {SLIDES.map((slide) => (
           <View key={slide.title} style={[styles.slide, { width, paddingTop: insets.top }]}>
-            <Well>
+            <Well height={wellHeight}>
               {slide.clip ? <Clip source={slide.clip} /> : slide.glyph?.()}
             </Well>
-            <Spacer h={space.xxl} />
+            <Spacer h={space.xl} />
             <Text variant="title" center>{slide.title}</Text>
             <Spacer h={space.md} />
             <Text variant="body" color={palette.ink45} center>{slide.body}</Text>
@@ -199,14 +209,6 @@ const styles = StyleSheet.create({
   },
   well: {
     width: '100%',
-    maxWidth: WELL_MAX_WIDTH,
-    aspectRatio: WELL_ASPECT,
-    borderRadius: radius.lg,
-    // The clips are recordings of a black app, so the well only shows through
-    // behind a glyph — but it has to be painted either way, or the rounded
-    // corners have nothing to clip against on Android.
-    backgroundColor: palette.surface,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
